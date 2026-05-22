@@ -31,15 +31,89 @@ const isStreamingActive = ref(false);
 let summaryQueue = [];
 let actionsQueue = [];
 
+// Lenient partial JSON parser to allow progressive streaming render of dashboard
+const parsePartialJSON = (jsonStr) => {
+  if (!jsonStr) return null;
+  let str = jsonStr.trim();
+  
+  // Clean markdown block code wrappers if the stream starts with them
+  if (str.startsWith('```')) {
+    str = str.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+  }
+  
+  try {
+    return JSON.parse(str);
+  } catch (e) {
+    // Continue with repair logic
+  }
+
+  let openBraces = 0;
+  let openBrackets = 0;
+  let inString = false;
+  let escaped = false;
+  
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (!inString) {
+      if (char === '{') openBraces++;
+      else if (char === '}') openBraces--;
+      else if (char === '[') openBrackets++;
+      else if (char === ']') openBrackets--;
+    }
+  }
+
+  if (inString) {
+    str += '"';
+  }
+
+  if (openBrackets > 0) {
+    str += ']'.repeat(openBrackets);
+  }
+  if (openBraces > 0) {
+    str += '}'.repeat(openBraces);
+  }
+
+  // Remove potential trailing commas from incomplete JSON properties
+  let cleaned = str.replace(/,\s*\]/g, ']').replace(/,\s*\}/g, '}');
+  
+  try {
+    return JSON.parse(cleaned);
+  } catch (e2) {
+    return null;
+  }
+};
+
 const processSummaryQueue = () => {
   if (summaryQueue.length > 0) {
-    // Dynamically adjust speed based on queue depth to keep pace with backend
     const batchSize = Math.max(1, Math.floor(summaryQueue.length / 12));
     for (let i = 0; i < batchSize; i++) {
       if (summaryQueue.length > 0) {
         summaryStream.value += summaryQueue.shift();
       }
     }
+    
+    // Parse the partial JSON and update the reactive state
+    const parsed = parsePartialJSON(summaryStream.value);
+    if (parsed) {
+      summaryResult.value = parsed;
+      // Live update follow-up email and Jira tasks if actions are also available
+      if (actionReportResult.value) {
+        followupResult.value = generateClientSideFollowup(parsed, actionReportResult.value);
+      }
+    }
+    
     scrollConsole(summaryConsoleRef);
   }
 };
@@ -52,6 +126,17 @@ const processActionsQueue = () => {
         actionsStream.value += actionsQueue.shift();
       }
     }
+    
+    // Parse the partial JSON and update the reactive state
+    const parsed = parsePartialJSON(actionsStream.value);
+    if (parsed) {
+      actionReportResult.value = parsed;
+      // Live update follow-up email and Jira tasks if summary is also available
+      if (summaryResult.value) {
+        followupResult.value = generateClientSideFollowup(summaryResult.value, parsed);
+      }
+    }
+    
     scrollConsole(actionsConsoleRef);
   }
 };
@@ -191,7 +276,7 @@ const runWorkflow = async () => {
   }
 
   // Set loading states
-  viewState.value = 'loading';
+  viewState.value = 'dashboard';
   isAnalyzing.value = true;
   loadingStep.value = 'translate';
   statusMessage.value = 'Connecting to workflow agents...';
@@ -699,6 +784,38 @@ const generateClientSideFollowup = (summary, report) => {
 
         <!-- Output Dashboard -->
         <div v-else-if="viewState === 'dashboard'" class="results-dashboard">
+          <!-- Live Agent Streams Status (Collapsible Panel during active analysis) -->
+          <div v-if="isAnalyzing" class="live-progress-overlay">
+            <div class="progress-banner-header">
+              <div class="progress-status-container">
+                <span class="spinner-tiny"></span>
+                <span class="progress-title">Workflow Agents Executing...</span>
+              </div>
+              <span class="status-msg-badge">{{ statusMessage }}</span>
+            </div>
+            
+            <div class="stream-consoles-container inline-consoles">
+              <div class="stream-console" :class="{ active: agentSummarizerActive }">
+                <div class="console-header">
+                  <h5>📝 Summarizer Agent Feed</h5>
+                  <span class="console-status" :class="{ streaming: isStreamingActive && summaryQueue.length > 0 }"></span>
+                </div>
+                <div class="console-content" ref="summaryConsoleRef">
+                  <span>{{ summaryStream }}</span><span class="typing-cursor" v-if="isStreamingActive && summaryStream">▋</span><span class="placeholder-text" v-if="!summaryStream">Awaiting stream...</span>
+                </div>
+              </div>
+              <div class="stream-console" :class="{ active: agentActionActive }">
+                <div class="console-header">
+                  <h5>⚡ Action Item Agent Feed</h5>
+                  <span class="console-status" :class="{ streaming: isStreamingActive && actionsQueue.length > 0 }"></span>
+                </div>
+                <div class="console-content" ref="actionsConsoleRef">
+                  <span>{{ actionsStream }}</span><span class="typing-cursor" v-if="isStreamingActive && actionsStream">▋</span><span class="placeholder-text" v-if="!actionsStream">Awaiting stream...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Nav Tabs -->
           <nav class="dashboard-tabs">
             <button class="tab-btn" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
@@ -1075,5 +1192,61 @@ const generateClientSideFollowup = (summary, report) => {
   white-space: pre-wrap;
   word-break: break-all;
   text-align: left;
+}
+
+.live-progress-overlay {
+  background: rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--border-radius-md);
+  padding: 16px;
+  margin-bottom: 24px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+
+.progress-banner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.progress-status-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progress-title {
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.status-msg-badge {
+  background: rgba(99, 102, 241, 0.12);
+  color: #a5b4fc;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+}
+
+.spinner-tiny {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(99, 102, 241, 0.15);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin-tiny 1s linear infinite;
+}
+
+@keyframes spin-tiny {
+  to { transform: rotate(360deg); }
+}
+
+.inline-consoles {
+  margin-top: 0 !important;
+  max-width: 100% !important;
 }
 </style>
