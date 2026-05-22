@@ -105,5 +105,721 @@
         ]
       }
     }
+  },
+  {
+    "id": "meeting_002",
+    "source": "transcript_2.txt",
+    "meeting_title": "Impromptu Microsoft Teams Meeting - September 10",
+    "expected": {
+      "summary": {
+        "concise_summary": "The team addressed two main workstreams. On the property valuation model, they agreed to use an allocation method — roughly 20% of average neighborhood sale price, adjusted for lot size — to estimate land values for Lancaster, and resolved to exclude improvement values from the comparison to create an apples-to-apples evaluation against Ernie's tool, which also lacks improvement data. Mazar committed to incorporating the formula and delivering updated model output before the following Wednesday's SAM call, with Ryan planning to manually appraise a small set of properties for comparison. On the VoiceFlow chatbot, the team reviewed branding customization options and agreed to upgrade to the $60/month Pro subscription to enable white-label presentation for an upcoming demo, brand the chatbot as 'Ava' using PowerAppeal's color scheme and logo, and deploy it as a JavaScript widget on the PowerAppeal staging site. The team outlined a per-jurisdiction architecture using separate VoiceFlow projects with dedicated knowledge bases, and noted a future path to integrate live CAMA data via the PowerAppeal API and a Cloudflare tunnel. A brief image labeling update confirmed approximately 100 verified samples toward a target of 150 training and 50 test samples, and a support meeting with Andrea was proposed to address her challenges.",
+        "key_discussion_points": [
+          "Land value estimation using allocation method: approximately 20% of the average neighborhood sale price, adjusted proportionally for lot size differences",
+          "Excluding improvement and cost-side values from the Lancaster model comparison to achieve apples-to-apples evaluation, since Ernie's tool also lacks improvement data",
+          "Mazar's model to incorporate the land value allocation formula; results to be shared before the Wednesday SAM call",
+          "Ryan to manually appraise a small number of Lancaster properties using the traditional adjustment grid for comparison against Mazar's model output",
+          "Future goal: derive land values statistically from sales data to eliminate the manual land table process in RPS",
+          "VoiceFlow chatbot customization: agent name, colors, logo, and branding; 'Powered by VoiceFlow' badge requires $60/month subscription to remove",
+          "VoiceFlow Pro subscription: 1 owner + 1 editor, up to 50 projects, approximately 10,000 credits/month (roughly 2,000 messages equivalent)",
+          "Multi-jurisdiction architecture: one VoiceFlow project per jurisdiction, each with a dedicated knowledge base; single subscription can cover multiple jurisdictions",
+          "Knowledge base for NOLA demo: Orleans FAQ document, Assessment QA document, and Orleans 2 Docs",
+          "Future CAMA data integration path: VoiceFlow chatbot API → PowerAppeal API endpoint → Cloudflare tunnel → Tyler system",
+          "User identity verification and rate-limiting via user ID to protect against credit abuse",
+          "Image labeling for the model: approximately 100 samples fully verified; targeting 150 for training and 50 for testing; Andrea struggling with complex cases"
+        ],
+        "decisions_made": [
+          "Exclude improvement and cost-side values from the Lancaster comparison test; use land value allocation estimate (20% of average sale price by lot size) rather than a full land table",
+          "Ignore improvement values in the comparison since Ernie's tool does not include them, ensuring a fair apples-to-apples evaluation",
+          "Upgrade VoiceFlow to the $60/month Pro subscription for white-label demo-ready branding",
+          "Brand the chatbot as 'Ava' using PowerAppeal's existing color scheme and the A-with-hash-lines logo",
+          "Use separate VoiceFlow projects per jurisdiction, each with its own knowledge base, under a single subscription",
+          "Deploy the VoiceFlow chatbot as a JavaScript widget on the PowerAppeal staging site before moving to production",
+          "Focus demo on NOLA (Orleans Parish) content; defer broader multi-jurisdiction configuration to future phases",
+          "Pursue a buy/use approach with VoiceFlow rather than a custom-built chatbot solution; reassess only if traction and security concerns justify the investment"
+        ],
+        "open_questions": [
+          "How will unusually large parcels (e.g., a 28-acre piece) be handled in the lot-size adjustment within Mazar's allocation formula?",
+          "Is it feasible to derive land values statistically from sales data to fully replace the manual land table workflow in RPS?",
+          "How will jurisdiction-specific answer variations (e.g., different final roll dates by municipality) be managed — separate projects or conditional logic within one project?",
+          "What is the exact credits-to-messages conversion rate on VoiceFlow's Pro plan, and how should the team monitor credit consumption?",
+          "How should user authentication be handled to verify identity before the chatbot queries CAMA data?"
+        ],
+        "missing_information": [
+          "The exact number of properties Ryan will manually appraise was not finalized — 'three or so' and 'five' were both mentioned",
+          "No specific calendar date was confirmed for Ryan's manual appraisal work",
+          "VoiceFlow registration instructions had not yet been sent to David at the time of the meeting",
+          "The exact demo date was referred to inconsistently as 'Monday' and 'Tuesday'; no final date was confirmed",
+          "Andrea's specific blockers and capacity for completing the remaining image labeling samples were not formally assessed"
+        ]
+      },
+      "action_report": {
+        "action_items": [
+          {
+            "action": "Incorporate land value allocation formula (20% of average neighborhood sale price, adjusted for lot size) into the property valuation model and produce output for all Lancaster parcels",
+            "owner": "Mazar Sayed",
+            "due_date": "Before Wednesday SAM call",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Manually appraise approximately 3–5 Lancaster properties using the traditional adjustment grid method for comparison against Mazar's model output",
+            "owner": "Ryan Burns",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Update VoiceFlow chatbot with GAR/PowerAppeal branding: apply PowerAppeal color scheme, rename agent to 'Ava,' and add A-with-hash-lines logo",
+            "owner": "Mazar Sayed",
+            "due_date": "Before demo (next week)",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Register VoiceFlow account, upgrade to $60/month Pro plan, and invite Mazar as editor",
+            "owner": "David Barnett",
+            "due_date": "ASAP (before demo)",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Send VoiceFlow registration instructions and editor invite process to David",
+            "owner": "Mazar Sayed",
+            "due_date": "ASAP",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Provide VoiceFlow JavaScript widget code for embedding on the PowerAppeal staging site",
+            "owner": "Mazar Sayed",
+            "due_date": "Before demo (next week)",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Integrate VoiceFlow chatbot JavaScript widget into the PowerAppeal staging site; restrict visibility to staging environment only",
+            "owner": "Randy Link",
+            "due_date": "Before demo (next Monday/Tuesday)",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Schedule a meeting with Andrea (and Randy) to review image processing expectations, clarify requirements, and address her challenges",
+            "owner": "David Barnett",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "Medium"
+          }
+        ],
+        "flagged_issues": [
+          "No specific calendar date was agreed on for Ryan's manual property appraisals — only described as 'sometime soon'",
+          "The demo date was referred to inconsistently as 'Monday' and 'Tuesday' — no final date was confirmed during the meeting",
+          "Action: 'Send VoiceFlow registration instructions' — deadline is dependent on David's account creation schedule, creating an indirect dependency risk for the demo timeline"
+        ]
+      }
+    }
+  },
+  {
+    "id": "meeting_003",
+    "source": "transcript_3.txt",
+    "meeting_title": "Impromptu Microsoft Teams Meeting - January 12",
+    "expected": {
+      "summary": {
+        "concise_summary": "The team aligned on four architectural and UX decisions for the Metis platform. First, overlapping work experiences in the Career Trajectory UI will display the longest-duration role as primary (left-aligned) with concurrent roles offset to the right, with a dynamic timeline highlight in blue when a role card is clicked. Second, Total Years of Experience will be calculated as the span from the first job's start date to the last job's end date minus breaks longer than six months, while Industry Experience is calculated independently by summing time spent in each industry. Third, company industry and description will be sourced via AI (Grok) instead of unreliable LinkedIn scraping, using only the company name as input. Fourth, login and authentication will be implemented immediately to support a multi-client SaaS model with shared core data and client-specific AI summaries, with initial test accounts for Celestial and HNC. A new pre-sprint wireframe review process with Lulu and Oshady was also established to reduce rework.",
+        "key_discussion_points": [
+          "Career Trajectory UI: the longest-duration overlapping role is displayed as primary (left-aligned); shorter concurrent roles are indented to the right to signal concurrency",
+          "Dynamic timeline: clicking a role card highlights its specific duration in blue on the timeline",
+          "Ordering logic: current roles ordered by total years at the company; past roles ordered chronologically by start date",
+          "Bug fix required: missing from-to dates for current roles in the existing UI",
+          "Total Years of Experience: span from first job start date to last job end date (or present), with breaks longer than 6 months deducted; breaks under 6 months ignored",
+          "Industry Experience: calculated separately by summing duration per industry across all jobs; does not necessarily equal Total YOE",
+          "UI feedback: unlink the auto-update between Total and Industry Experience fields; start all industry experience rings from the 12 o'clock position",
+          "LinkedIn unreliable for company industry and information, especially for senior profiles and startups",
+          "New data source: use AI (Grok) for company enrichment — scrape only company name from LinkedIn, then use Grok to derive industry and company summary",
+          "Candidate profile header title = title from the primary role (longest-duration role on the career trajectory)",
+          "Authentication must be implemented now to enable a multi-client SaaS architecture; deferring it would require a costly data structure refactor",
+          "Data architecture: Core Data (raw LinkedIn profiles, shared across clients) vs. Summarized Data (AI-generated summaries, client-specific)",
+          "Initial SaaS test accounts to be created for Celestial and HNC",
+          "New pre-sprint process: dedicated wireframe Q&A session with Lulu and Oshady to clarify requirements and reduce rework"
+        ],
+        "decisions_made": [
+          "Career Trajectory UI: longest-duration role is primary (left-aligned); overlapping roles are offset to the right; dynamic blue highlight on timeline on card click",
+          "Total YOE calculated as first-job-start to last-job-end span minus breaks >6 months; Industry YOE calculated independently by summing per-industry durations",
+          "Replace LinkedIn company data with AI (Grok)-sourced industry classification and company description",
+          "Candidate profile header title = title from the primary (longest-duration) role",
+          "Implement login/authentication now to support a multi-client SaaS model with shared core data and client-specific summaries",
+          "Create initial SaaS test accounts for Celestial and HNC",
+          "Establish a pre-sprint wireframe Q&A review process with Lulu and Oshady to clarify requirements before development begins"
+        ],
+        "open_questions": [
+          "Should the wireframe review session happen before or after sprint planning? The team agreed to hold it but left the timing undecided.",
+          "What is the tiebreaker when two overlapping roles have equal duration for determining the primary role?",
+          "Which specific GDPR and HIPAA compliance requirements apply to the data architecture, and how will they be addressed?"
+        ],
+        "missing_information": [
+          "The timing of the wireframe review session relative to sprint planning was explicitly left undecided",
+          "Specific AWS account isolation requirements for Metis were not discussed in depth; left to Lulu to investigate",
+          "No specific deadlines were set for any of the assigned action items",
+          "The standard industry list to be created for company classification was mentioned but no process, source, or owner was assigned"
+        ]
+      },
+      "action_report": {
+        "action_items": [
+          {
+            "action": "Fix the missing from-to date bug for current roles in the Career Trajectory UI",
+            "owner": "Swarnaka",
+            "due_date": "Next release",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Implement the new Career Trajectory UI logic: longest-duration role as primary (left-aligned), overlapping roles offset to the right, dynamic blue timeline highlight on card click",
+            "owner": "Swarnaka",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Unlink the auto-update between the Total Years of Experience and Industry Experience fields in the UI",
+            "owner": "Swarnaka",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "Medium"
+          },
+          {
+            "action": "Update industry experience rings to start from the 12 o'clock position for visual consistency",
+            "owner": "Swarnaka",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "Medium"
+          },
+          {
+            "action": "Integrate Grok for company data enrichment: scrape only company name from LinkedIn, use Grok to derive industry classification and company description",
+            "owner": "Mazar",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Implement the new logic for calculating Total Years of Experience (first-start to last-end minus breaks >6 months) and Industry Years of Experience (sum per industry)",
+            "owner": "Mazar",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Assign the candidate's primary role title (longest-duration role) to the profile header",
+            "owner": "Mazar",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "Medium"
+          },
+          {
+            "action": "Create a feature ticket for login/authentication, assigning implementation tasks to Mazar, Nipuna, and Oshady",
+            "owner": "Dulni",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Schedule the pre-sprint wireframe Q&A review session with Lulu and Oshady before the next sprint",
+            "owner": "Dulni",
+            "due_date": "Before next sprint",
+            "status": "Clear",
+            "priority": "Medium"
+          },
+          {
+            "action": "Investigate the current AWS account to confirm Metis is isolated from other Celestial projects",
+            "owner": "Lulu",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "Medium"
+          }
+        ],
+        "flagged_issues": [
+          "All action items are missing specific due dates",
+          "The timing of the wireframe review session (before or after sprint planning) was left undecided — a follow-up decision is needed",
+          "Industry standardization list creation was referenced in action items but no owner, source, or process was defined"
+        ]
+      }
+    }
+  },
+  {
+    "id": "meeting_004",
+    "source": "Creston & Folke LLP.txt",
+    "meeting_title": "New Hire Onboarding Check-in — Creston & Folke LLP",
+    "expected": {
+      "summary": {
+        "concise_summary": "Three new associates at Creston & Folke LLP (Jordan Tate in Corporate, Reem Saleh in Litigation, Oliver Bassett in Real Estate) met with HR Director Paula Everett and IT Support Specialist Marcus Fong for a first-week temperature check. IT issues included Jordan's DMS Lextrack group permissions not attaching correctly on provisioning (to be fixed immediately after the meeting), a known Westlaw/Chrome browser quirk not yet documented in onboarding materials, and Oliver's distorted email signature logo. Policy questions covered the official 1,900-hour annual billable hours target (versus a 2,000-hour department-level stretch goal mentioned by Reem's supervisor), the $100 pre-approval threshold for expenses (Jordan's $80 lunch was compliant), and the remote work policy (no formal waiting period but a strong informal 90-day in-office norm, especially in Real Estate). Onboarding feedback praised the buddy and mentorship programs but identified the information-dense first-day orientation, IT provisioning delays, and the absence of a building floor map as areas for improvement. Paula committed to following up with all three associates by end of next week.",
+        "key_discussion_points": [
+          "Jordan Tate unable to open DMS Lextrack matter files due to group permissions not attaching correctly during provisioning — a known issue that Marcus can fix with a ten-minute manual correction",
+          "Westlaw requires Chrome, not Edge — a known browser quirk not yet documented in onboarding materials",
+          "Oliver Bassett's email signature logo was distorted due to incorrect manual resizing; correct template to be provided",
+          "Discrepancy between the firm's official 1,900-hour billable hours target (handbook and offer letter) and the 2,000-hour figure mentioned by Reem's Litigation supervisor (likely a department-level stretch goal)",
+          "Expense pre-approval threshold is $100 for supervising partner sign-off; Jordan's $80 client lunch does not require pre-approval and can be submitted through Concur within 30 days with the client matter number",
+          "Remote work policy: no formal waiting period exists in the written policy, but a strong 90-day in-office norm is standard, especially for Real Estate; associates advised to raise the topic with their supervisor at the three-month mark",
+          "Buddy system and mentorship pairing highlighted as the most effective onboarding elements by all three new hires",
+          "First-day orientation identified as information overload; suggestion to space it out or send a post-orientation recap email (a previously discussed but unimplemented idea)",
+          "IT provisioning delay: Reem did not have full system access until Wednesday, stalling her first two days; root cause is late submission of provisioning requests from HR",
+          "No building floor map exists; Oliver discovered the kitchen on day three; suggestion to add a physical and digital version to onboarding"
+        ],
+        "decisions_made": [
+          "Marcus to fix Jordan's DMS Lextrack group permissions immediately after the meeting",
+          "Marcus to send Oliver the correct email signature template after the meeting",
+          "Marcus to add a browser preference note (Chrome for Westlaw) to the onboarding checklist",
+          "Paula to confirm alignment on billable hours expectation between the firm handbook and Litigation department guidance, and clarify directly with Reem",
+          "Paula to review and clarify remote work policy language in the handbook for first-year associates",
+          "Paula to explore triggering IT provisioning earlier in the offer process to prevent day-one access delays",
+          "Paula to develop a post-orientation recap email summarizing key information from first-day orientation",
+          "Paula and Marcus to create a building floor map and publish a digital version on the intranet"
+        ],
+        "open_questions": [
+          "Does Reem's Litigation supervisor apply a higher 2,000-hour stretch goal, and how should first-year associates in Litigation reconcile department-level expectations with the firm's official 1,900-hour benchmark?",
+          "What is the appropriate process for new associates to initiate the remote work conversation once the informal 90-day in-office period ends?",
+          "Are there other undocumented IT quirks beyond the Westlaw/Chrome issue that should be captured in the onboarding materials?"
+        ],
+        "missing_information": [
+          "No specific deadlines were set for updating the onboarding checklist, revising remote work policy language, or developing the post-orientation recap email",
+          "Paula's promised follow-up summary to all three associates was described as 'by end of next week' with no specific date confirmed",
+          "The root cause of the DMS group permissions sync failure was not investigated — only a manual fix was agreed upon; future new hires may encounter the same issue"
+        ]
+      },
+      "action_report": {
+        "action_items": [
+          {
+            "action": "Fix Jordan Tate's DMS Lextrack group permissions so she can access Corporate matter files",
+            "owner": "Marcus Fong",
+            "due_date": "Immediately after meeting",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Send Oliver Bassett the correct email signature template file",
+            "owner": "Marcus Fong",
+            "due_date": "Today",
+            "status": "Clear",
+            "priority": "Medium"
+          },
+          {
+            "action": "Add a note to the onboarding documentation specifying that Westlaw must be opened in Chrome, not Edge",
+            "owner": "Marcus Fong",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "Low"
+          },
+          {
+            "action": "Confirm alignment between the firm's 1,900-hour billable target and the 2,000-hour figure referenced by Reem's Litigation supervisor; clarify the correct benchmark directly with Reem",
+            "owner": "Paula Everett",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "Medium"
+          },
+          {
+            "action": "Review and update handbook language on remote work eligibility for first-year associates to reflect the 90-day in-office norm",
+            "owner": "Paula Everett",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "Medium"
+          },
+          {
+            "action": "Explore moving the IT provisioning request earlier in the offer or hiring process to eliminate day-one and day-two access gaps",
+            "owner": "Paula Everett",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "Medium"
+          },
+          {
+            "action": "Develop and send a post-orientation recap email summarizing the key information covered on day one",
+            "owner": "Paula Everett",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "Low"
+          },
+          {
+            "action": "Create a building floor map and publish a digital version on the firm intranet for new hires",
+            "owner": "Paula Everett / Marcus Fong",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "Low"
+          },
+          {
+            "action": "Send a follow-up summary to Jordan Tate, Reem Saleh, and Oliver Bassett confirming the action items taken from this meeting",
+            "owner": "Paula Everett",
+            "due_date": "End of next week",
+            "status": "Clear",
+            "priority": "Medium"
+          }
+        ],
+        "flagged_issues": [
+          "Billable hours discrepancy: Reem's supervisor mentioned 2,000 hours while the firm handbook states 1,900 — this inconsistency was acknowledged but not resolved in the meeting; Paula needs to follow up directly",
+          "DMS provisioning failure: the root cause of group permissions not attaching on first sync was not addressed systemically — only a manual fix was agreed for Jordan; future new hires are likely to face the same issue",
+          "Actions for onboarding documentation updates, handbook language revision, and the post-orientation recap email all lack assigned deadlines"
+        ]
+      }
+    }
+  },
+  {
+    "id": "meeting_005",
+    "source": "Product Roadmap Sprint Kickoff.txt",
+    "meeting_title": "Product Roadmap Sprint Kickoff — Moonbeam Labs Mobile Checkout",
+    "expected": {
+      "summary": {
+        "concise_summary": "The Moonbeam Labs mobile checkout team held a 15-minute sprint kickoff and set the sprint goal as shipping a testable mobile checkout flow covering payment, address input, and order confirmation. Three active tickets were sized: MCO-47 (address autocomplete, 8 points) was pulled in from the backlog after Anika identified it as a prerequisite blocker for the order confirmation screen; the Android 3DS redirect flow fix (3 points, carry-over) is expected to complete by end of week with QA testing scheduled for the following Monday; and the order confirmation screen (5 points) is pending a revised UX spec from Ravi by Wednesday. Two blockers were identified: the QA staging environment has no dedicated Stripe test account (Cara has been using her personal account), which Jake will resolve today with the infra team; and the order object schema in Confluence is potentially outdated, which Jake will locate and post before EOD. A new ticket MCO-51 was created for the Stripe staging setup as a 1-point infra task.",
+        "key_discussion_points": [
+          "Sprint goal: ship a testable mobile checkout flow by end of sprint, covering payment, address input, and order confirmation",
+          "Stripe integration on Android is mostly complete; 3DS redirect flow fix is approximately 80% done and expected to finish by end of week",
+          "MCO-47 (address autocomplete) pulled into sprint as a forward dependency blocker for the order confirmation screen; scored at 8 story points due to Google Places API rate limit quirk requiring debouncing logic",
+          "Ravi needs until Wednesday to finalize the address autocomplete dropdown UX spec; Anika will stub the backend component in the meantime and wire up the frontend once the spec is ready",
+          "QA blocker: no shared Stripe test account in the staging environment — Cara has been using her personal account, which is a process and security risk",
+          "Order object schema in Confluence is potentially outdated; Anika could not locate a reliable version last week — Jake to find and post before EOD",
+          "Ravi's order confirmation screen Figma link (including empty-state edge cases) was sent to the wrong Slack channel; to be re-shared in #checkout-sprint today",
+          "MCO-51 created as a 1-point infra ticket to track the Stripe staging account setup"
+        ],
+        "decisions_made": [
+          "Pull MCO-47 (address autocomplete) into this sprint; story point estimate set at 8",
+          "Anika to stub MCO-47 backend component and wire up frontend once Ravi's spec is delivered Wednesday",
+          "3DS flow QA testing scheduled for Monday morning; Cara to block that time",
+          "Sprint goal confirmed: testable mobile checkout flow covering payment, address input, and order confirmation by end of sprint",
+          "Jake to raise MCO-51 (Stripe staging account setup, 1 story point, infra) to track the blocker"
+        ],
+        "open_questions": [
+          "Is the order object schema in Confluence current? If not, does it change the 5-point estimate for the order confirmation screen?",
+          "What is the Google Places API rate limit threshold that necessitates debouncing in the MCO-47 address autocomplete implementation?"
+        ],
+        "missing_information": [
+          "Sprint end date was not stated — story point totals and capacity were not discussed",
+          "The exact sprint total story points (8 + 3 + 5 + 1 = 17) were not validated against team capacity",
+          "No explicit confirmation that the Android 3DS layout issue (separate from the redirect flow logic) is fully resolved"
+        ]
+      },
+      "action_report": {
+        "action_items": [
+          {
+            "action": "Set up a dedicated Stripe test account in the staging environment for QA use",
+            "owner": "Jake Carver",
+            "due_date": "Today",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Locate the order object API schema and post it in the team channel, verifying it is up to date",
+            "owner": "Jake Carver",
+            "due_date": "EOD today",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Raise ticket MCO-51 for the Stripe staging account setup (1 story point, infra task)",
+            "owner": "Jake Carver",
+            "due_date": "Today",
+            "status": "Clear",
+            "priority": "Medium"
+          },
+          {
+            "action": "Deliver updated UX spec for MCO-47 address autocomplete dropdown interaction, including debouncing behavior",
+            "owner": "Ravi Nair",
+            "due_date": "Wednesday",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Re-share the order confirmation screen Figma link (with empty-state edge cases) in the #checkout-sprint Slack channel",
+            "owner": "Ravi Nair",
+            "due_date": "Today",
+            "status": "Clear",
+            "priority": "Medium"
+          },
+          {
+            "action": "Stub MCO-47 backend address autocomplete component; wire up frontend once Ravi's spec is delivered",
+            "owner": "Anika Müller",
+            "due_date": "Frontend by end of sprint; backend stub ASAP",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Complete the Android 3DS redirect flow fix and make it available for QA testing on Monday",
+            "owner": "Anika Müller",
+            "due_date": "End of this week",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Review the order confirmation screen Figma (especially empty-state edge cases) once the link is re-shared",
+            "owner": "Cara Walsh",
+            "due_date": "Today",
+            "status": "Clear",
+            "priority": "Medium"
+          },
+          {
+            "action": "Block Monday morning for QA testing of the 3DS redirect flow",
+            "owner": "Cara Walsh",
+            "due_date": "Monday",
+            "status": "Clear",
+            "priority": "High"
+          }
+        ],
+        "flagged_issues": [
+          "Cara has been using a personal Stripe account for QA testing — this is a security and process risk that should have been caught during sprint setup",
+          "MCO-47 UX spec is not finalized at sprint start; backend work can proceed but frontend remains blocked until Wednesday, creating a tight integration window before QA",
+          "The order object schema in Confluence may be outdated — if Jake's EOD check reveals it needs updating, the 5-point estimate for the order confirmation screen may need to be revisited"
+        ]
+      }
+    }
+  },
+  {
+    "id": "meeting_006",
+    "source": "Q3 Budget Review — Vortex Analytics Inc.txt",
+    "meeting_title": "Q3 Budget Review — Vortex Analytics Inc.",
+    "expected": {
+      "summary": {
+        "concise_summary": "The Vortex Analytics finance team reviewed Q3 actuals and approved the provisional Q4 budget. Q3 total spend of $2.41 million exceeded the $2.18 million forecast by approximately 11%, driven by two main variances: cloud infrastructure ($498k actual vs $340k budget) due to an unplanned August data migration (~$80k) and higher-than-scoped data volumes from three new enterprise clients onboarded in September; and contractor costs ($210k vs $175k forecast) due to two contractors extended past their July end date without a formal change request. For Q4, the team approved a provisional budget of $2.35 million with cloud infrastructure raised to $420k including a 10% contingency. Divya will migrate Redshift clusters to reserved instances before October 1st, potentially reducing the cloud line to $390k. Going forward, the team agreed on a 15%-above-forecast cloud spend alert mechanism and a formal change request requirement for all contractor extensions. Lily will add a contractor extension field to the monthly variance report.",
+        "key_discussion_points": [
+          "Q3 total overspend: $2.41M actual vs $2.18M forecast (approximately 11% over budget)",
+          "Cloud infrastructure variance: $498k actual vs $340k budget (+$158k); causes: unplanned August data migration (~$80k in compute and egress costs) and unexpectedly high pipeline cluster utilization from three new enterprise clients onboarded in September",
+          "Contractor cost variance: $210k actual vs $175k forecast; two contractors extended through end of September (originally scoped to finish in July) to cover a client delivery slip; communicated via email but not as a formal change request",
+          "Engineering team monitored cluster utilization but expected it to normalize after onboarding; no escalation to finance before the overspend became material",
+          "Q4 cloud infrastructure proposed at $420k, incorporating new client data volumes and a 10% contingency buffer",
+          "Migrating Redshift clusters to reserved instances before October expected to reduce cloud unit costs by approximately 12–15%, potentially bringing Q4 cloud spend down to $390k",
+          "Q4 contractor budget: $160k (assumes no extensions); Oscar flagged risk of additional resource need if pipeline deals close in Q4",
+          "Agreed process change: Divya to set up a cloud console alert when spend exceeds 15% above monthly forecast",
+          "Agreed process change: all contractor extensions must be submitted as formal change requests, not informal emails",
+          "Lily to add a contractor extension field to the monthly variance report to surface extensions before they become budget overruns"
+        ],
+        "decisions_made": [
+          "Approve Q4 provisional budget of $2.35 million with cloud infrastructure at $420k (including 10% contingency)",
+          "Divya to migrate Redshift clusters to reserved instances before October 1st; if completed, Q4 cloud budget can be trimmed to $390k",
+          "Implement a cloud spend alert triggering when spend exceeds 15% above monthly forecast; Divya to configure in the cloud console",
+          "All future contractor extensions require a formal change request (not just email notification)",
+          "Lily to add a contractor extension tracking field to the monthly variance report",
+          "Oscar to flag any likely pipeline close to Tom before committing contractor resource"
+        ],
+        "open_questions": [
+          "Will Q4 pipeline deals close, requiring additional contractor resource beyond the $160k budget?",
+          "Is the 15% alert threshold the right trigger level given historical variance patterns, or does it need calibration?",
+          "What exactly were the scoped vs actual data volumes for the three new enterprise clients — were scope estimates materially off, and does this affect future client onboarding projections?"
+        ],
+        "missing_information": [
+          "The $80k August data migration cost was an estimate; exact figures were not reviewed or confirmed during the meeting",
+          "No specific target date was confirmed for the reserved instances migration beyond 'before October' (i.e., before October 1st)",
+          "The formal change request process for contractor extensions was agreed to but no owner was assigned to document or enforce it going forward"
+        ]
+      },
+      "action_report": {
+        "action_items": [
+          {
+            "action": "Set up cloud spend budget alerts in the cloud console to trigger when monthly spend exceeds 15% above forecast",
+            "owner": "Divya Patel",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Migrate Redshift clusters to reserved instances to reduce cloud unit costs by 12–15%; complete before October 1st",
+            "owner": "Divya Patel",
+            "due_date": "Before October 1",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Send the updated Q4 budget sheet incorporating the provisional allocations discussed to the full group",
+            "owner": "Tom Mullen",
+            "due_date": "End of day",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Add a contractor extension field to the monthly variance report so extensions are visible before becoming budget overruns",
+            "owner": "Lily Hsu",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "Medium"
+          },
+          {
+            "action": "Flag any pipeline deal that looks likely to close in Q4 to Tom before committing to additional contractor resource",
+            "owner": "Oscar Brennan",
+            "due_date": "Ongoing",
+            "status": "Clear",
+            "priority": "Medium"
+          }
+        ],
+        "flagged_issues": [
+          "Contractor extension was communicated via email rather than a formal change request — the process gap was acknowledged but no owner was assigned to document or enforce the new formal requirement going forward",
+          "Cloud overspend was being monitored at the engineering level but was not escalated to finance before it became a material variance; the new 15% alert addresses this prospectively but the Q3 miss was avoidable",
+          "The Redshift reserved instances migration has no firmer deadline than 'before October 1st' — if delayed, the Q4 $420k cloud estimate may need revision and Tom's updated budget sheet may need to be corrected"
+        ]
+      }
+    }
+  },
+  {
+    "id": "meeting_007",
+    "source": "Tangent Creative Co.txt",
+    "meeting_title": "Campaign Performance Debrief — Tangent Creative Co.",
+    "expected": {
+      "summary": {
+        "concise_summary": "The Tangent Creative Co. marketing team debriefed on the summer launch campaign and aligned on August A/B test priorities. The campaign achieved a 2.4% CTR (above the 2.1% benchmark) but underdelivered on conversion at 1.8% against a 2.5% target, indicating strong click volume but funnel drop-off. Three specific failure points were identified: the animated banner set (0.9% CTR, attributed to insufficient mobile QA before launch), vague CTAs in email messages 4 and 5 causing post-message-3 click-through drop-off, and an unresolved tablet landing page layout bug producing a 68% bounce rate. The best-performing assets were static lifestyle photography ads (3.1% CTR, 2.3% conversion) and an urgency-driven email subject line variant (38% open rate). For August, the team agreed to run three A/B tests: static vs animated creative, landing page headline, and short-form vs long-form funnel flows. Hannah will deliver copy variants by July 12, Priya needs assets by July 15 to set up tracking for a late-July launch, and Sofia will schedule a readiness sync for July 16. Ethan will own the UTM template and investigate the tablet bug today.",
+        "key_discussion_points": [
+          "Summer campaign overall CTR: 2.4% vs 2.1% benchmark (above target); conversion rate: 1.8% vs 2.5% target (below target) — clicks were driven but drop-off occurred in the funnel",
+          "Animated banner set: worst performer at 0.9% CTR; Ethan acknowledged mobile QA was insufficient before launch",
+          "Email sequence: solid overall open rates (~34%) but click-through dropped sharply after message three; CTAs in messages 4 and 5 were too vague ('learn more'); funnel data confirms drop-off at this exact point",
+          "Tablet landing page: 68% bounce rate at the tablet breakpoint; dev team flagged a layout issue two weeks before launch but Ethan believed it was resolved — confirmed it was not",
+          "Best-performing assets: static lifestyle photography ads (3.1% CTR, 2.3% conversion rate for that segment)",
+          "Best-performing email variant: urgency-driven 'limited time' subject line at 38% open rate — outperformed standard variants despite initial hesitation about the tone",
+          "August A/B test priorities: (1) static vs animated creative — resolve the format question with real data; (2) landing page headline refresh (unchanged since March); (3) short-form vs long-form funnel flow comparison",
+          "UTM parameter inconsistency in the previous campaign broke half the tracking; Ethan acknowledged ownership and will own the UTM template going forward",
+          "All creative assets and copy variants needed by July 15 for a late-July launch; copy due July 12 to allow buffer"
+        ],
+        "decisions_made": [
+          "Run three A/B tests in August: static vs animated creative, landing page headline, and short-form vs long-form funnel flow",
+          "Ethan to own and distribute the UTM parameter template for the August campaign before any assets go live",
+          "Hannah to deliver copy variants for A/B tests by July 12, focusing on direct benefit-led messaging vs current approach",
+          "Hannah to also revise email messages 4 and 5 CTAs to be more specific (separate from A/B tests — fix regardless)",
+          "Priya to set up the tracking structure for all three A/B tests; needs assets and copy by July 15",
+          "Sofia to schedule a readiness sync on July 16 to confirm all assets are ready before launch"
+        ],
+        "open_questions": [
+          "Has the tablet landing page layout bug actually been resolved? Ethan to confirm status by EOD.",
+          "What specific benefit-led copy angles will Hannah test in the A/B variants versus the current messaging approach?",
+          "What is the target launch date within 'end of July' for the August A/B campaign?"
+        ],
+        "missing_information": [
+          "The exact launch date was described as 'end of July' but not confirmed as a specific date",
+          "No budget was discussed for producing new creative assets for the August campaign",
+          "Ethan's EOD status update on the tablet bug had no designated recipient confirmed beyond Sofia",
+          "The email sequence fix (messages 4–5 CTA revision) had no deadline set beyond 'regardless of the A/B tests'"
+        ]
+      },
+      "action_report": {
+        "action_items": [
+          {
+            "action": "Investigate the tablet landing page layout bug causing 68% bounce rate and report status to Sofia by EOD",
+            "owner": "Ethan Obi",
+            "due_date": "EOD today",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Create and own the UTM parameter template for the August campaign; share with the team before any assets go live",
+            "owner": "Ethan Obi",
+            "due_date": "Before campaign launch",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Deliver copy variants for the three August A/B tests and revise email messages 4–5 CTAs to be specific and benefit-led",
+            "owner": "Hannah Cole",
+            "due_date": "July 12",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Set up the tracking structure for all three A/B tests once creative assets and copy are received",
+            "owner": "Priya Rao",
+            "due_date": "By July 15 (assets due July 15)",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Schedule a brief readiness sync on July 16 to confirm all assets are ready before the August campaign goes live",
+            "owner": "Sofia Larsson",
+            "due_date": "July 16",
+            "status": "Clear",
+            "priority": "Medium"
+          }
+        ],
+        "flagged_issues": [
+          "Tablet landing page bug: was flagged by the dev team two weeks before the summer launch but not properly verified as resolved before go-live — Ethan owned the miss; status still unconfirmed going into this meeting",
+          "UTM tracking failure: parameter inconsistency in the previous campaign broke half the tracking data; ownership was unclear until this meeting — now formally assigned to Ethan for August",
+          "Email messages 4–5 CTA revision was agreed as a standalone fix but given no deadline — risk of it being deprioritized against the A/B test workload"
+        ]
+      }
+    }
+  },
+  {
+    "id": "meeting_008",
+    "source": "Vendor Contract Renewal — Nexora Supply Chain.txt",
+    "meeting_title": "Vendor Contract Renewal — Nexora Supply Chain / Eastbridge Logistics",
+    "expected": {
+      "summary": {
+        "concise_summary": "Nexora Supply Chain's procurement team met with Karl Jensen from Eastbridge Logistics to negotiate renewal terms ahead of the July 5th contract expiry. On volume discounts, the parties agreed to a 6% discount at a 700-shipment-per-month floor with a 60-day notice clause if volumes drop below that level; the proposed 8% tier above 900 shipments remains unresolved, pending Karl's internal sign-off and a formal volume commitment from Nexora. On SLAs, a hard 96% on-time delivery target was agreed with a force majeure carve-out and a new 48-hour invocation notice window replacing the existing vague 'reasonable notice' language. Expanding real-time GPS tracking to Class B freight (not just Class A) was agreed in principle, with Karl to provide per-shipment cost impact by Friday. The penalty structure was revised from 1.5% per event with a 5% cap to 2.5% per event with a 7% cap, plus a new $500 administrative fee for SLA breach reports submitted more than 5 business days after Eastbridge becomes aware. Irene Castellano will produce a revised contract draft within two business days of receiving the Class B tracking cost figures, targeting full execution before June 30th.",
+        "key_discussion_points": [
+          "Current volume discount: flat 4% above 500 shipments/month; Nexora proposed a tiered structure (4% at 500, 6.5% at 700, 8% above 900); Karl countered with 6% at 700 and flagged 8% as requiring both internal approval and a volume commitment from Nexora",
+          "Nexora confident in sustaining 700 shipments/month floor; David considers 750 likely but would not commit in writing; January/February historically dip (~620 in prior year) though route consolidation in March may have improved this",
+          "60-day notice clause: required by Karl if Nexora volumes drop below the 700 floor, to protect Eastbridge capacity planning",
+          "8% tier at 900 shipments: unresolved — requires Karl's internal sign-off and a formal written volume commitment from Nexora",
+          "OTD SLA: current contractual target is 94%; three months last year came in at 91–92%, causing downstream warehouse scheduling issues; Nexora requesting a hard 96% target",
+          "Karl accepted 96% as a hard contractual target, attributing last year's dips partly to industry-wide port delays",
+          "Force majeure: already in the existing contract; carried forward with a new 48-hour invocation notice window (previously 'reasonable notice,' which was ambiguous)",
+          "Class B freight GPS tracking: expanding real-time 30-minute updates from Class A only to include Class B is agreed in principle; Karl to confirm per-shipment cost impact by Friday",
+          "David flagged that if the Class B tracking cost is more than a few cents per shipment, it changes the economics of the discount tiers",
+          "Penalty revision: 1.5% per event / 5% monthly cap → 2.5% per event / 7% cap (Nexora proposed 10%, Karl countered 7%, Fatima accepted)",
+          "New $500 administrative fee for late SLA breach reporting: clock starts from when Eastbridge becomes aware of the breach (not the date of occurrence)"
+        ],
+        "decisions_made": [
+          "6% volume discount at a 700-shipment-per-month floor with a 60-day notice clause for volume shortfalls",
+          "8% discount tier at 900 shipments remains open; outstanding pending Karl's internal approval and a formal volume commitment from Nexora",
+          "Hard 96% on-time delivery SLA target with force majeure carve-out",
+          "Force majeure invocation notice window: 48 hours from when Eastbridge becomes aware of the triggering event",
+          "Expand real-time GPS tracking to Class B freight in principle; final agreement contingent on Karl's cost impact figures (due Friday)",
+          "Penalty structure: 2.5% per breach event, 7% monthly invoice cap",
+          "New $500 administrative fee for SLA breach reporting delays beyond 5 business days of Eastbridge's awareness date",
+          "Irene to draft the revised contract within two business days of receiving Karl's Class B tracking cost figures",
+          "Target: all terms agreed and contract ready for signature before June 30th"
+        ],
+        "open_questions": [
+          "What is the per-shipment cost increase for expanding GPS tracking to Class B freight? (Karl to provide by Friday morning)",
+          "Does the Class B tracking cost materially affect the economics of the volume discount tiers?",
+          "What formal volume commitment can Nexora offer to unlock the 8% discount tier above 900 shipments?"
+        ],
+        "missing_information": [
+          "Karl did not have the Class B freight tracking cost figures available during the meeting — exact cost unknown until Friday",
+          "No formal volume commitment level from Nexora for the 8% discount tier was proposed or discussed",
+          "The Q1 seasonal volume dip risk (January/February averaging ~620 in prior year) was raised by David but not proposed as a formal contract carve-out, despite Nexora potentially triggering the 60-day notice clause during those months"
+        ]
+      },
+      "action_report": {
+        "action_items": [
+          {
+            "action": "Provide the per-shipment cost impact of expanding real-time GPS tracking to Class B freight",
+            "owner": "Karl Jensen (Eastbridge)",
+            "due_date": "Friday morning",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Review the Class B tracking cost figures from Karl and confirm whether the cost is acceptable or requires renegotiation of the discount tiers",
+            "owner": "David Nguyen",
+            "due_date": "Upon receipt of Karl's figures (Friday)",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Draft revised contract incorporating all agreed terms: 6%/700 discount with 60-day notice clause, 96% OTD SLA with 48-hour force majeure notice, 2.5%/7% penalty structure, $500 late-reporting fee, and Class B tracking clause once cost is confirmed",
+            "owner": "Irene Castellano",
+            "due_date": "Within 2 business days of receiving Karl's Class B cost figures",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Seek internal sign-off on the 8% discount tier at 900 shipments and report position back to Greg",
+            "owner": "Karl Jensen (Eastbridge)",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "Medium"
+          },
+          {
+            "action": "Confirm whether Nexora can provide a formal volume commitment to unlock the 8% discount tier, incorporating demand planning data",
+            "owner": "Greg Vance / Fatima Warsame",
+            "due_date": "Needs date",
+            "status": "Needs clarification",
+            "priority": "Medium"
+          }
+        ],
+        "flagged_issues": [
+          "The 8% discount tier at 900 shipments was left entirely unresolved — it requires both Karl's internal sign-off and a formal volume commitment from Nexora; if either is delayed, the full discount structure cannot be finalized before the June 30th deadline",
+          "Karl did not bring the Class B freight tracking cost figures to the meeting — this is an unknown that could affect the contract economics and delay Irene's draft if not received by Friday",
+          "Q1 seasonal volume risk: David acknowledged January/February volumes historically dip to ~620 shipments, which could trigger the 60-day notice clause; no Q1 carve-out was proposed in the contract language despite the discussion"
+        ]
+      }
+    }
   }
 ]
