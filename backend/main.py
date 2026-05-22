@@ -8,6 +8,7 @@ from agents.action_item_agent import stream_action_item_agent
 from agents.followup_agent import stream_followup_agent
 from agents.translator_agent import translate_transcript
 from agents.project_chat_agent import stream_project_chat
+from agents.chat_agent import stream_chat_agent
 from utils import make_client, parse_json
 from utils.file_processor import extract_transcript
 
@@ -266,7 +267,7 @@ async def ws_chat(websocket: WebSocket):
             if not user_message.strip():
                 continue
 
-            client = _make_client()
+            client = make_client()
             accumulated_response = ""
 
             async for chunk in stream_chat_agent(

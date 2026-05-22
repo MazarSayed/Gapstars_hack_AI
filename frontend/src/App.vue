@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue';
+import { marked } from 'marked';
 
 // ---------------------------------------------------------------------------
 // App-level mode toggle: 'single' | 'project'
@@ -19,9 +20,9 @@ const projectFileInputRef = ref(null);
 const isAddingMeeting = ref(false);
 const addMeetingStatus = ref('');
 
-const chatMessages = ref([]); // [{ role: 'user'|'assistant', text, streaming? }]
-const chatInput = ref('');
-const isChatStreaming = ref(false);
+const projectChatMessages = ref([]); // [{ role: 'user'|'assistant', text, streaming? }]
+const projectChatInput = ref('');
+const isProjectChatStreaming = ref(false);
 const chatScrollRef = ref(null);
 let projectSocket = null;
 
@@ -72,7 +73,7 @@ const createProject = async () => {
 
 const selectProject = (proj) => {
   activeProject.value = proj;
-  chatMessages.value = [];
+  projectChatMessages.value = [];
   addMeetingStatus.value = '';
   connectProjectChat(proj.project_id);
 };
@@ -89,45 +90,45 @@ const connectProjectChat = (projectId) => {
     const data = JSON.parse(e.data);
     if (data.type === 'ready') return;
     if (data.type === 'chunk') {
-      const last = chatMessages.value[chatMessages.value.length - 1];
+      const last = projectChatMessages.value[projectChatMessages.value.length - 1];
       if (last && last.role === 'assistant' && last.streaming) {
         last.text += data.chunk;
         scrollChat();
       }
     }
     if (data.type === 'done') {
-      const last = chatMessages.value[chatMessages.value.length - 1];
+      const last = projectChatMessages.value[projectChatMessages.value.length - 1];
       if (last && last.streaming) last.streaming = false;
-      isChatStreaming.value = false;
+      isProjectChatStreaming.value = false;
     }
     if (data.type === 'error') {
-      isChatStreaming.value = false;
-      chatMessages.value.push({ role: 'assistant', text: `Error: ${data.message}`, streaming: false });
+      isProjectChatStreaming.value = false;
+      projectChatMessages.value.push({ role: 'assistant', text: `Error: ${data.message}`, streaming: false });
     }
   };
 
   ws.onerror = () => {
-    isChatStreaming.value = false;
+    isProjectChatStreaming.value = false;
   };
 };
 
-const sendChatMessage = () => {
-  const q = chatInput.value.trim();
-  if (!q || isChatStreaming.value || !projectSocket || projectSocket.readyState !== WebSocket.OPEN) return;
+const sendProjectChatMessage = () => {
+  const q = projectChatInput.value.trim();
+  if (!q || isProjectChatStreaming.value || !projectSocket || projectSocket.readyState !== WebSocket.OPEN) return;
 
-  chatMessages.value.push({ role: 'user', text: q, streaming: false });
-  chatMessages.value.push({ role: 'assistant', text: '', streaming: true });
-  isChatStreaming.value = true;
-  chatInput.value = '';
+  projectChatMessages.value.push({ role: 'user', text: q, streaming: false });
+  projectChatMessages.value.push({ role: 'assistant', text: '', streaming: true });
+  isProjectChatStreaming.value = true;
+  projectChatInput.value = '';
   scrollChat();
 
   projectSocket.send(JSON.stringify({ question: q }));
 };
 
-const handleChatKeydown = (e) => {
+const handleProjectChatKeydown = (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
-    sendChatMessage();
+    sendProjectChatMessage();
   }
 };
 
@@ -727,16 +728,7 @@ const copyJiraTask = (task) => {
   triggerToast('Jira ticket Markdown copied!');
 };
 
-const renderMarkdown = (text) => {
-  if (!text) return '';
-  return text
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/^#{1,3} (.+)$/gm, '<strong>$1</strong>')
-    .replace(/^- (.+)$/gm, '• $1')
-    .replace(/\n/g, '<br>');
-};
+
 
 const copyAllJira = () => {
   if (!followupResult.value || !followupResult.value.jira_tasks) return;
@@ -779,54 +771,7 @@ const suggestedQuestions = [
 
 const renderMarkdown = (text) => {
   if (!text) return '';
-  let html = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
-  // Fenced Code blocks
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
-    return `<pre class="code-block"><div class="code-header">${lang || 'code'}</div><code>${code.trim()}</code></pre>`;
-  });
-
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-  // Bold
-  html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
-
-  // Italics
-  html = html.replace(/\*([^\*]+)\*/g, '<em>$1</em>');
-
-  // Headers
-  html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-  html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-  html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
-
-  // Lists (bullet and numbered)
-  const paragraphs = html.split('\n\n');
-  const processed = paragraphs.map(p => {
-    if (p.trim().startsWith('- ') || p.trim().startsWith('* ')) {
-      const items = p.split('\n').map(line => {
-        const itemText = line.replace(/^[-*]\s+/, '');
-        return `<li>${itemText}</li>`;
-      }).join('');
-      return `<ul class="chat-list">${items}</ul>`;
-    }
-    if (/^\d+\.\s+/.test(p.trim())) {
-      const items = p.split('\n').map(line => {
-        const itemText = line.replace(/^\d+\.\s+/, '');
-        return `<li>${itemText}</li>`;
-      }).join('');
-      return `<ol class="chat-list">${items}</ol>`;
-    }
-    if (p.trim() && !p.trim().startsWith('<h') && !p.trim().startsWith('<pre')) {
-      return `<p>${p.replace(/\n/g, '<br>')}</p>`;
-    }
-    return p;
-  });
-
-  return processed.join('');
+  return marked.parse(text, { breaks: true });
 };
 
 const scrollChatToEnd = () => {
@@ -1169,18 +1114,18 @@ const clearChat = () => {
 
           <!-- Message History -->
           <div class="chat-messages" ref="chatScrollRef">
-            <div v-if="!chatMessages.length" class="chat-starter-hints">
+            <div v-if="!projectChatMessages.length" class="chat-starter-hints">
               <p class="chat-hint-title">Try asking:</p>
               <div class="chat-hint-chips">
-                <span class="hint-chip" @click="chatInput = 'What decisions have been made so far?'; sendChatMessage()">What decisions have been made?</span>
-                <span class="hint-chip" @click="chatInput = 'Which action items are still open?'; sendChatMessage()">Which action items are open?</span>
-                <span class="hint-chip" @click="chatInput = 'Catch me up on the project so far'; sendChatMessage()">Catch me up on the project</span>
-                <span class="hint-chip" @click="chatInput = 'What risks or blockers were mentioned?'; sendChatMessage()">What risks were mentioned?</span>
+                <span class="hint-chip" @click="projectChatInput = 'What decisions have been made so far?'; sendProjectChatMessage()">What decisions have been made?</span>
+                <span class="hint-chip" @click="projectChatInput = 'Which action items are still open?'; sendProjectChatMessage()">Which action items are open?</span>
+                <span class="hint-chip" @click="projectChatInput = 'Catch me up on the project so far'; sendProjectChatMessage()">Catch me up on the project</span>
+                <span class="hint-chip" @click="projectChatInput = 'What risks or blockers were mentioned?'; sendProjectChatMessage()">What risks were mentioned?</span>
               </div>
             </div>
 
             <div
-              v-for="(msg, idx) in chatMessages"
+              v-for="(msg, idx) in projectChatMessages"
               :key="idx"
               class="chat-message"
               :class="msg.role"
@@ -1197,14 +1142,14 @@ const clearChat = () => {
           <!-- Chat Input -->
           <div class="chat-input-row">
             <textarea
-              v-model="chatInput"
+              v-model="projectChatInput"
               class="chat-textarea"
               placeholder="Ask anything about your project meetings..."
               rows="2"
-              :disabled="isChatStreaming"
-              @keydown="handleChatKeydown"
+              :disabled="isProjectChatStreaming"
+              @keydown="handleProjectChatKeydown"
             ></textarea>
-            <button class="chat-send-btn" :disabled="isChatStreaming || !chatInput.trim()" @click="sendChatMessage">
+            <button class="chat-send-btn" :disabled="isProjectChatStreaming || !projectChatInput.trim()" @click="sendProjectChatMessage">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"></line>
                 <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
@@ -2312,5 +2257,514 @@ const clearChat = () => {
 .chat-send-btn:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+/* ===========================================================================
+   Chatbot Widget & Meeting Assistant Styles
+   =========================================================================== */
+.chatbot-widget {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.chat-toggle-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary, #6366f1) 0%, #a855f7 100%);
+  border: none;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  outline: none;
+}
+
+.chat-toggle-btn:hover {
+  transform: scale(1.06) translateY(-2px);
+  box-shadow: 0 12px 28px rgba(99, 102, 241, 0.45);
+}
+
+.chat-toggle-btn:active {
+  transform: scale(0.95) translateY(0);
+}
+
+.chat-badge-pulse {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 10px;
+  height: 10px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  border: 2px solid #0f172a;
+  animation: badge-pulse 2s infinite;
+}
+
+@keyframes badge-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.chat-window-panel {
+  position: absolute;
+  bottom: 64px;
+  right: 0;
+  width: 360px;
+  height: 480px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: chat-slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes chat-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.chat-window-header {
+  padding: 12px 16px;
+  background: rgba(30, 41, 59, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chat-window-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.active-dot {
+  width: 7px;
+  height: 7px;
+  background-color: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #10b981;
+}
+
+.chat-window-title h4 {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #f3f4f6;
+  letter-spacing: 0.2px;
+}
+
+.chat-clear-btn {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.chat-clear-btn:hover {
+  color: #f3f4f6;
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.chat-suggestions {
+  padding: 10px 14px;
+  background: rgba(30, 41, 59, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.suggestions-label {
+  display: block;
+  font-size: 10.5px;
+  color: #9ca3af;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.suggestions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.suggestion-chip {
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: #c7d2fe;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.suggestion-chip:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.35);
+  transform: translateY(-1px);
+}
+
+.chat-messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-bubble-wrap {
+  display: flex;
+  width: 100%;
+}
+
+.chat-bubble-wrap.user {
+  justify-content: flex-end;
+}
+
+.chat-bubble-wrap.model {
+  justify-content: flex-start;
+}
+
+.chat-bubble {
+  max-width: 85%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chat-bubble-wrap.user .chat-bubble {
+  background: linear-gradient(135deg, var(--primary, #6366f1) 0%, #4f46e5 100%);
+  color: white;
+  border-bottom-right-radius: 2px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+}
+
+.chat-bubble-wrap.model .chat-bubble {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #e5e7eb;
+  border-bottom-left-radius: 2px;
+}
+
+.chat-timestamp {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.4);
+  align-self: flex-end;
+  margin-top: 4px;
+}
+
+.chat-bubble-wrap.model .chat-timestamp {
+  color: #9ca3af;
+}
+
+.chat-bubble-content {
+  word-break: break-word;
+}
+
+.chat-bubble-content p {
+  margin: 0 0 6px 0;
+}
+
+.chat-bubble-content p:last-child {
+  margin-bottom: 0;
+}
+
+.chat-bubble-content strong {
+  color: #fff;
+  font-weight: 600;
+}
+
+.chat-bubble-content code {
+  font-family: Menlo, Monaco, Consolas, monospace;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 85%;
+  color: #f472b6;
+}
+
+.chat-bubble-content pre.code-block {
+  margin: 8px 0;
+  background: #0f172a;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.chat-bubble-content pre .code-header {
+  background: rgba(255, 255, 255, 0.04);
+  padding: 3px 8px;
+  font-size: 9.5px;
+  color: #a5b4fc;
+  text-transform: uppercase;
+  font-weight: bold;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.chat-bubble-content pre code {
+  display: block;
+  padding: 8px;
+  overflow-x: auto;
+  background: transparent;
+  color: #e2e8f0;
+  font-size: 11px;
+}
+
+.chat-bubble-content ul.chat-list, 
+.chat-bubble-content ol.chat-list {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+
+.chat-bubble-content li {
+  margin-bottom: 3px;
+}
+
+.chat-input-form {
+  padding: 10px 12px;
+  background: rgba(30, 41, 59, 0.5);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.chat-input-form input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: #f3f4f6;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.chat-input-form input:focus {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.chat-input-form .chat-send-btn {
+  background: var(--primary, #6366f1);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.chat-input-form .chat-send-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  background: rgba(255, 255, 255, 0.05);
+  color: #6b7280;
+}
+
+.chat-loader-dots {
+  display: inline-flex;
+  gap: 3px;
+  padding: 4px 0;
+  align-items: center;
+}
+
+.chat-loader-dots span {
+  width: 5px;
+  height: 5px;
+  background-color: #9ca3af;
+  border-radius: 50%;
+  animation: chat-loader-bounce 1.4s infinite ease-in-out both;
+}
+
+.chat-loader-dots span:nth-child(1) { animation-delay: -0.32s; }
+.chat-loader-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes chat-loader-bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1.0); }
+}
+
+/* ---- Light Theme Tweaks ---- */
+body.light-theme .chat-window-panel {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.1);
+}
+
+body.light-theme .chat-window-header {
+  background: rgba(241, 245, 249, 0.7);
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+body.light-theme .chat-window-title h4 {
+  color: #1e293b;
+}
+
+body.light-theme .chat-clear-btn {
+  color: #64748b;
+}
+
+body.light-theme .chat-clear-btn:hover {
+  color: #1e293b;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+body.light-theme .chat-suggestions {
+  background: rgba(241, 245, 249, 0.4);
+  border-bottom-color: rgba(0, 0, 0, 0.04);
+}
+
+body.light-theme .suggestions-label {
+  color: #64748b;
+}
+
+body.light-theme .suggestion-chip {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.15);
+  color: #4f46e5;
+}
+
+body.light-theme .suggestion-chip:hover {
+  background: rgba(99, 102, 241, 0.14);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+body.light-theme .chat-bubble-wrap.model .chat-bubble {
+  background: rgba(0, 0, 0, 0.035);
+  border-color: rgba(0, 0, 0, 0.05);
+  color: #334155;
+}
+
+body.light-theme .chat-bubble-wrap.model .chat-timestamp {
+  color: #64748b;
+}
+
+body.light-theme .chat-bubble-content strong {
+  color: #0f172a;
+}
+
+body.light-theme .chat-bubble-content code {
+  background: rgba(0, 0, 0, 0.06);
+  color: #db2777;
+}
+
+body.light-theme .chat-bubble-content pre.code-block {
+  background: #f8fafc;
+  border-color: rgba(0, 0, 0, 0.05);
+}
+
+body.light-theme .chat-bubble-content pre .code-header {
+  background: rgba(0, 0, 0, 0.02);
+  color: #4f46e5;
+  border-bottom-color: rgba(0, 0, 0, 0.04);
+}
+
+body.light-theme .chat-bubble-content pre code {
+  color: #334155;
+}
+
+body.light-theme .chat-input-form {
+  background: rgba(241, 245, 249, 0.7);
+  border-top-color: rgba(0, 0, 0, 0.06);
+}
+
+body.light-theme .chat-input-form input {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #1e293b;
+}
+
+body.light-theme .chat-input-form input:focus {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: #ffffff;
+}
+
+@media (max-width: 480px) {
+  .chat-window-panel {
+    width: calc(100vw - 32px);
+    height: calc(100vh - 100px);
+    right: 0;
+  }
+}
+
+/* Table styles inside chat bubbles */
+.chat-bubble-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.chat-bubble-content th, 
+.chat-bubble-content td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.chat-bubble-content th {
+  background-color: rgba(255, 255, 255, 0.05);
+  font-weight: 600;
+  color: #a5b4fc;
+}
+
+.chat-bubble-content tr:last-child td {
+  border-bottom: none;
+}
+
+body.light-theme .chat-bubble-content table {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+body.light-theme .chat-bubble-content th {
+  background-color: rgba(0, 0, 0, 0.03);
+  color: #4f46e5;
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+body.light-theme .chat-bubble-content td {
+  border-bottom-color: rgba(0, 0, 0, 0.04);
 }
 </style>
