@@ -224,15 +224,15 @@ const selectProject = async (pid) => {
 };
 
 const selectMeeting = async (pid, mid) => {
-  if (activeProjectId.value !== pid) {
-    activeProjectId.value = pid;
-    if (!projectCache.value[pid]) await fetchProjectDetail(pid);
-  }
+  // Set IDs immediately so the sidebar reflects the navigation instantly
+  activeProjectId.value = pid;
   activeMeetingId.value = mid;
   view.value = 'meeting';
   activeTab.value = 'overview';
   meetingFilter.value = 'all';
   closeChat();
+  // Fetch data only if not already cached (pre-fetched during streaming close)
+  if (!projectCache.value[pid]) await fetchProjectDetail(pid);
 };
 
 const toggleExpand = async (pid) => {
@@ -495,9 +495,15 @@ const doUpload = async () => {
       ws.close();
 
       setTimeout(async () => {
-        await fetchProjects();
-        delete projectCache.value[pid];
-        delete summaryCache.value[pid];
+        try {
+          // Pre-fetch project data while modal is still open to prevent blank UI states
+          await fetchProjects();
+          await fetchProjectDetail(pid);
+          delete summaryCache.value[pid];
+        } catch (err) {
+          console.error('Error pre-fetching project details:', err);
+        }
+
         showUpload.value = false;
         isUploading.value = false;
         isStreaming.value = false;
@@ -859,10 +865,11 @@ onMounted(() => {
           <template v-else>
             <div class="streaming-header">
               <h3>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spinner-tiny" style="margin-right: 5px;"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 1 10 10"></path></svg>
-                Live AI Analysis
-                <span class="streaming-header-badge">
-                  Processing
+                <svg v-if="currentStep < 5" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spinner-tiny" style="margin-right: 5px;"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 1 10 10"></path></svg>
+                <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5" style="margin-right: 5px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                {{ currentStep < 5 ? 'Live AI Analysis' : 'Analysis Complete' }}
+                <span class="streaming-header-badge" :class="currentStep >= 5 ? 'badge-done' : ''">
+                  {{ currentStep >= 5 ? 'Opening…' : 'Processing' }}
                 </span>
               </h3>
               <span class="file-name" style="font-size: 13.5px; opacity: 0.85;">{{ uploadFile?.name }}</span>
@@ -884,6 +891,10 @@ onMounted(() => {
               <div class="streaming-step" :class="{ active: currentStep === 4, completed: currentStep > 4 }">
                 <span class="streaming-step-icon">4</span>
                 <span>Saving Meeting</span>
+              </div>
+              <div class="streaming-step" :class="{ active: currentStep === 5, completed: currentStep > 5 }">
+                <span class="streaming-step-icon">5</span>
+                <span>Opening Meeting</span>
               </div>
             </div>
 
@@ -1797,7 +1808,7 @@ async def ws_summarize(websocket: WebSocket):
           </div>
 
           <!-- ── Meeting View ── -->
-          <div v-else-if="view === 'meeting' && activeMeeting" class="view-meeting">
+          <div v-else-if="view === 'meeting' && activeMeeting" class="view-meeting animate-fade-in">
             <div class="view-header">
               <h1>{{ activeMeeting.name || 'Untitled Meeting' }}</h1>
               <p class="view-subtitle">{{ activeProjectInList?.name }}</p>

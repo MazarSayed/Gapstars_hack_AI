@@ -1321,6 +1321,13 @@ select:focus {
     display: inline-flex;
     align-items: center;
     gap: 5px;
+    transition: background 0.3s, color 0.3s, border-color 0.3s;
+}
+
+.streaming-header-badge.badge-done {
+    background: var(--success-glow);
+    color: var(--success);
+    border-color: var(--success);
 }
 
 .streaming-stepper {
