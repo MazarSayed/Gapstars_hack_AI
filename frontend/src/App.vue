@@ -41,6 +41,7 @@ const expandedIds = ref(new Set());
 const showNewProjectForm = ref(false);
 const newProjectName = ref('');
 const isCreatingProject = ref(false);
+const projectNameInputRef = ref(null);
 
 // ── Upload modal ──────────────────────────────────────────────────────────────
 const showUpload = ref(false);
@@ -611,6 +612,14 @@ watch(activeTab, (newTab) => {
   }
 });
 
+watch(showNewProjectForm, (isOpen) => {
+  if (isOpen) {
+    nextTick(() => {
+      projectNameInputRef.value?.focus();
+    });
+  }
+});
+
 // ── Mount ─────────────────────────────────────────────────────────────────────
 onMounted(() => {
   const saved = localStorage.getItem('theme') || 'dark';
@@ -818,6 +827,47 @@ onMounted(() => {
       </div>
     </Teleport>
 
+    <!-- ══ Create Project Modal ══ -->
+    <Teleport to="body">
+      <div v-if="showNewProjectForm" class="modal-backdrop" @click.self="showNewProjectForm = false">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3>Create New Project</h3>
+            <button class="modal-close-btn" @click="showNewProjectForm = false" :disabled="isCreatingProject">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+          
+          <div class="modal-body-content">
+            <p class="modal-desc">Enter a name for your new project to start organizing meetings, transcripts, and action items.</p>
+            <div class="text-input-group">
+              <label for="new-project-name-input">Project Name</label>
+              <input 
+                id="new-project-name-input"
+                ref="projectNameInputRef"
+                class="text-input-field" 
+                v-model="newProjectName"
+                placeholder="e.g., Q3 Cloud Migration"
+                :disabled="isCreatingProject"
+                @keydown.enter="createProject"
+                @keydown.esc="showNewProjectForm = false"
+              />
+            </div>
+          </div>
+
+          <div class="modal-footer-actions">
+            <button class="secondary-btn" @click="showNewProjectForm = false" :disabled="isCreatingProject">Cancel</button>
+            <button class="primary-btn" 
+              :disabled="isCreatingProject || !newProjectName.trim()"
+              @click="createProject">
+              <span v-if="isCreatingProject">Creating...</span>
+              <span v-else>Create Project</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- ══ App Shell ══ -->
     <div class="app-shell">
 
@@ -882,21 +932,7 @@ onMounted(() => {
         </nav>
 
         <div class="sidebar-footer">
-          <div v-if="showNewProjectForm" class="new-proj-form">
-            <input class="text-input-field" v-model="newProjectName"
-              placeholder="Project name…"
-              @keydown.enter="createProject"
-              @keydown.esc="showNewProjectForm = false" />
-            <div class="new-proj-actions">
-              <button class="btn-ghost-xs" @click="showNewProjectForm = false">Cancel</button>
-              <button class="btn-primary-xs"
-                :disabled="isCreatingProject || !newProjectName.trim()"
-                @click="createProject">
-                {{ isCreatingProject ? '…' : 'Create' }}
-              </button>
-            </div>
-          </div>
-          <button v-else class="new-project-btn" @click="showNewProjectForm = true">
+          <button class="new-project-btn" @click="showNewProjectForm = true">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             New Project
           </button>
@@ -2337,6 +2373,25 @@ onMounted(() => {
 .upload-error-msg { font-size: 12.5px; color: var(--danger); }
 
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+.modal-body-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-desc {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.modal-footer-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
 
 .upload-btn-modal {
   display: flex;
