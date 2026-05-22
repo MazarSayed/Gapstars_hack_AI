@@ -1,0 +1,131 @@
+Q3 Budget Review — Vortex Analytics Inc.
+
+Boardroom B  ·  Finance
+
+Tue, 10 Jun 2025
+10:00 – 10:15 AM
+5 attendees
+SR
+Sandra Reeves · CFO
+
+Right, let's get started — I know everyone's busy. Tom, can you walk us through the Q3 headline numbers first?
+10:00
+
+TM
+Tom Mullen · Head of Finance
+
+Sure. So overall Q3 came in at $2.41 million against a forecast of $2.18 million — that's about an eleven percent overspend. Most of it is concentrated in two areas: cloud infrastructure and contractor costs. Lily, do you want to pull up the breakdown?
+10:01
+
+LH
+Lily Hsu · Finance Analyst
+
+Yes — [shuffles papers] — sorry, one sec. Okay. Cloud infra was budgeted at $340k, we came in at $498k. That's the biggest single variance. Contractor costs were $210k against $175k forecast. Everything else was broadly on track.
+10:02
+
+SR
+Sandra Reeves · CFO
+
+$498k on cloud. Divya, I'm guessing that lands in your world. What happened?
+10:03
+
+DP
+Divya Patel · Engineering Lead
+
+Yeah, so — two things. We had that unplanned data migration in August that nobody budgeted for. That alone was around $80k in compute and egress. And then we onboarded three new enterprise clients in September and their data volumes were significantly higher than scoped. We were running hot on the pipeline clusters for most of the month.
+10:04
+
+OB
+Oscar Brennan · Ops Manager
+
+Were we not flagging that in the weekly ops reviews? I feel like I saw something about cluster utilisation ticking up but I don't think it got escalated.
+10:05
+
+DP
+Divya Patel · Engineering Lead
+
+Honestly, we were watching it but we thought it would normalise after the onboarding spike. It didn't. I should have raised it sooner — I'll own that.
+10:06
+
+TM
+Tom Mullen · Head of Finance
+
+It's not about blame — but going forward we do need a clearer trigger. Like, if cloud spend is tracking more than fifteen percent above monthly forecast, finance gets an alert. Can we agree on that?
+10:07
+
+DP
+Divya Patel · Engineering Lead
+
+Agreed. I can set up budget alerts in the cloud console — shouldn't take long.
+10:08
+
+SR
+Sandra Reeves · CFO
+
+Good. Oscar, the contractor overspend — that's ops-side?
+10:08
+
+OB
+Oscar Brennan · Ops Manager
+
+Partly. We extended two contractors through to end of September that were originally scoped to finish in July. The client delivery slipped and we needed the coverage. I did send an email about it — [glances around] — I think it went to Tom?
+10:09
+
+TM
+Tom Mullen · Head of Finance
+
+I may have missed it — there was a lot going on in August. But yeah, that should have been a formal change request, not just an email. My bad for not chasing it up either.
+10:10
+
+LH
+Lily Hsu · Finance Analyst
+
+Should I add a contractor extension field to the monthly variance report? Then at least it shows up in the numbers before it becomes a problem.
+10:10
+
+SR
+Sandra Reeves · CFO
+
+Yes, do that. Good idea, Lily. Okay — let's move to Q4. Tom, what are you proposing?
+10:11
+
+TM
+Tom Mullen · Head of Finance
+
+So the provisional Q4 total is $2.35 million. Cloud infra is up to $420k — that reflects the new client volumes. I've also added a ten percent contingency buffer on infra specifically, so we have some room. Contractor costs are back down to $160k assuming no extensions.
+10:12
+
+DP
+Divya Patel · Engineering Lead
+
+The $420k should be okay if we move the Redshift clusters to reserved instances before October. I've been meaning to do that — it'll bring unit costs down probably twelve, fifteen percent.
+10:13
+
+TM
+Tom Mullen · Head of Finance
+
+If you can do that before the first, it might actually let us trim that line back to $390k. Worth doing.
+10:13
+
+OB
+Oscar Brennan · Ops Manager
+
+On contractors — are we assuming no new client onboarding in Q4? Because if the pipeline closes what I think it might, we could need resource again.
+10:14
+
+SR
+Sandra Reeves · CFO
+
+Flag it to Tom the moment anything looks likely to close. We're not going to sit here and pretend deals don't happen — but we need the numbers before we commit resource. Alright. I'm happy to sign off on the provisional Q4 allocation as presented, with the caveat that Divya moves on the reserved instances. Tom, you'll send the updated sheet to the group today?
+10:14
+
+TM
+Tom Mullen · Head of Finance
+
+Will do — I'll have it out by end of day.
+10:15
+
+SR
+Sandra Reeves · CFO
+
+Great. Thanks everyone — that was efficient.
