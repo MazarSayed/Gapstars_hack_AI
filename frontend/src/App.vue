@@ -26,6 +26,43 @@ const statusMessage = ref('');
 const summaryConsoleRef = ref(null);
 const actionsConsoleRef = ref(null);
 
+// Queues for character-by-character typewriter rendering
+const isStreamingActive = ref(false);
+let summaryQueue = [];
+let actionsQueue = [];
+
+const processSummaryQueue = () => {
+  if (summaryQueue.length > 0) {
+    // Dynamically adjust speed based on queue depth to keep pace with backend
+    const batchSize = Math.max(1, Math.floor(summaryQueue.length / 12));
+    for (let i = 0; i < batchSize; i++) {
+      if (summaryQueue.length > 0) {
+        summaryStream.value += summaryQueue.shift();
+      }
+    }
+    scrollConsole(summaryConsoleRef);
+  }
+};
+
+const processActionsQueue = () => {
+  if (actionsQueue.length > 0) {
+    const batchSize = Math.max(1, Math.floor(actionsQueue.length / 12));
+    for (let i = 0; i < batchSize; i++) {
+      if (actionsQueue.length > 0) {
+        actionsStream.value += actionsQueue.shift();
+      }
+    }
+    scrollConsole(actionsConsoleRef);
+  }
+};
+
+const tickStreamQueues = () => {
+  if (!isStreamingActive.value) return;
+  processSummaryQueue();
+  processActionsQueue();
+  requestAnimationFrame(tickStreamQueues);
+};
+
 // Toast alerts
 const toastMessage = ref('');
 const showToastActive = ref(false);
@@ -159,9 +196,13 @@ const runWorkflow = async () => {
   loadingStep.value = 'translate';
   statusMessage.value = 'Connecting to workflow agents...';
 
-  // Clear live stream buffers
+  // Initialize and trigger live streaming queues
+  isStreamingActive.value = true;
+  summaryQueue = [];
+  actionsQueue = [];
   summaryStream.value = '';
   actionsStream.value = '';
+  requestAnimationFrame(tickStreamQueues);
   
   agentSummarizerActive.value = false;
   agentActionActive.value = false;
@@ -185,6 +226,7 @@ const runWorkflow = async () => {
   const establishConnection = (urlIndex) => {
     if (urlIndex >= wsUrls.length) {
       alert(`WebSocket connection failed.\n\nReason: A port conflict was detected on port 8000 (likely due to a local PHP built-in server or another service listening on localhost:8000).\n\nSolutions:\n1. Run the FastAPI server on port 8001 instead:\n   uv run uvicorn main:app --port 8001\n\n2. Or, terminate the conflicting PHP process on port 8000:\n   kill -9 <PHP_PID>\n\n(The frontend is configured to automatically try both port 8000 and 8001!)`);
+      isStreamingActive.value = false;
       viewState.value = 'empty';
       isAnalyzing.value = false;
       return;
@@ -238,15 +280,17 @@ const runWorkflow = async () => {
         } 
         
         else if (data.type === 'summary_chunk') {
-          summaryStream.value += data.chunk;
+          if (data.chunk) {
+            summaryQueue.push(...data.chunk.split(''));
+          }
           agentSummarizerActive.value = true;
-          scrollConsole(summaryConsoleRef);
         } 
         
         else if (data.type === 'actions_chunk') {
-          actionsStream.value += data.chunk;
+          if (data.chunk) {
+            actionsQueue.push(...data.chunk.split(''));
+          }
           agentActionActive.value = true;
-          scrollConsole(actionsConsoleRef);
         } 
         
         else if (data.type === 'summary_done') {
@@ -258,6 +302,17 @@ const runWorkflow = async () => {
         } 
         
         else if (data.type === 'complete') {
+          // Flush any remaining characters immediately
+          isStreamingActive.value = false;
+          if (summaryQueue.length > 0) {
+            summaryStream.value += summaryQueue.join('');
+            summaryQueue = [];
+          }
+          if (actionsQueue.length > 0) {
+            actionsStream.value += actionsQueue.join('');
+            actionsQueue = [];
+          }
+
           statusMessage.value = 'Analysis complete. Drafting reports...';
           loadingStep.value = 'followup';
           agentFollowupActive.value = true;
@@ -276,6 +331,7 @@ const runWorkflow = async () => {
         
         else if (data.type === 'error') {
           alert(`Agent Error: ${data.message}`);
+          isStreamingActive.value = false;
           viewState.value = 'empty';
           isAnalyzing.value = false;
           socket.close();
@@ -293,6 +349,7 @@ const runWorkflow = async () => {
         establishConnection(urlIndex + 1);
       } else {
         alert('Workflow connection was interrupted.');
+        isStreamingActive.value = false;
         viewState.value = 'empty';
         isAnalyzing.value = false;
       }
@@ -619,16 +676,22 @@ const generateClientSideFollowup = (summary, report) => {
           </div>
 
           <div class="stream-consoles-container">
-            <div class="stream-console">
-              <h5>📝 Summarizer Agent Feed</h5>
+            <div class="stream-console" :class="{ active: agentSummarizerActive }">
+              <div class="console-header">
+                <h5>📝 Summarizer Agent Feed</h5>
+                <span class="console-status" :class="{ streaming: isStreamingActive && summaryQueue.length > 0 }"></span>
+              </div>
               <div class="console-content" ref="summaryConsoleRef">
-                {{ summaryStream || 'Awaiting stream...' }}
+                <span>{{ summaryStream }}</span><span class="typing-cursor" v-if="isStreamingActive && summaryStream">▋</span><span class="placeholder-text" v-if="!summaryStream">Awaiting stream...</span>
               </div>
             </div>
-            <div class="stream-console">
-              <h5>⚡ Action Item Agent Feed</h5>
+            <div class="stream-console" :class="{ active: agentActionActive }">
+              <div class="console-header">
+                <h5>⚡ Action Item Agent Feed</h5>
+                <span class="console-status" :class="{ streaming: isStreamingActive && actionsQueue.length > 0 }"></span>
+              </div>
               <div class="console-content" ref="actionsConsoleRef">
-                {{ actionsStream || 'Awaiting stream...' }}
+                <span>{{ actionsStream }}</span><span class="typing-cursor" v-if="isStreamingActive && actionsStream">▋</span><span class="placeholder-text" v-if="!actionsStream">Awaiting stream...</span>
               </div>
             </div>
           </div>
@@ -938,9 +1001,23 @@ const generateClientSideFollowup = (summary, report) => {
   padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
   height: 180px;
   overflow: hidden;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.stream-console.active {
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.08);
+}
+
+.console-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 6px;
+  margin-bottom: 6px;
 }
 
 .stream-console h5 {
@@ -949,13 +1026,50 @@ const generateClientSideFollowup = (summary, report) => {
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.console-status {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+.console-status.streaming {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulse-green 1.5s infinite;
+}
+
+@keyframes pulse-green {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.placeholder-text {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.typing-cursor {
+  display: inline-block;
+  color: var(--primary);
+  font-weight: bold;
+  animation: blink-cursor 0.8s infinite steps(2, start);
+  margin-left: 2px;
+}
+
+@keyframes blink-cursor {
+  to { visibility: hidden; }
 }
 
 .console-content {
   font-family: 'Courier New', Courier, monospace;
   font-size: 11px;
   color: var(--text-main);
-  line-height: 1.4;
+  line-height: 1.45;
   overflow-y: auto;
   flex: 1;
   white-space: pre-wrap;
