@@ -8,13 +8,9 @@ from agents.action_item_agent import stream_action_item_agent
 from agents.followup_agent import stream_followup_agent
 from agents.translator_agent import translate_transcript
 from agents.project_chat_agent import stream_project_chat
-<<<<<<< HEAD
-from agents.chat_agent import stream_chat_agent
-from utils import make_client, parse_json
-=======
 from agents.project_summary_agent import stream_project_summary
+from agents.chat_agent import stream_chat_agent
 from utils import get_langfuse, make_client, parse_json, propagate_attributes
->>>>>>> 4fb778d (tracing and project ui)
 from utils.file_processor import extract_transcript
 import db
 
