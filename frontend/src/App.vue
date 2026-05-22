@@ -53,15 +53,21 @@ const uploadStatus = ref('');
 const uploadError = ref('');
 const uploadFileRef = ref(null);
 
-const projectChatMessages = ref([]); // [{ role: 'user'|'assistant', text, streaming? }]
-const projectChatInput = ref('');
-const isProjectChatStreaming = ref(false);
+
 // ── Chat panel ────────────────────────────────────────────────────────────────
 const isChatOpen = ref(false);
-const chatMessages = ref([]);
+const chatMessages = ref([
+  {
+    role: 'model',
+    content: "Hi! I'm your Meeting Assistant. You can ask me questions about this meeting's decisions, action items, or anything else in the transcript.",
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+]);
 const chatInput = ref('');
+const isChatConnecting = ref(false);
 const isChatStreaming = ref(false);
 const chatScrollRef = ref(null);
+let chatSocket = null;
 let projectSocket = null;
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -137,6 +143,8 @@ const selectProject = async (pid) => {
   activeMeetingId.value = null;
   view.value = 'project';
   expandedIds.value = new Set([...expandedIds.value, pid]);
+  chatMessages.value = [];
+  connectProjectChat(pid);
   if (!projectCache.value[pid]) await fetchProjectDetail(pid);
   if (!summaryCache.value[pid]) fetchProjectSummary(pid);
 };
@@ -261,11 +269,6 @@ const openChat = () => {
   }
 };
 
-const selectProject = (proj) => {
-  activeProject.value = proj;
-  projectChatMessages.value = [];
-  addMeetingStatus.value = '';
-  connectProjectChat(proj.project_id);
 const closeChat = () => {
   isChatOpen.value = false;
   if (projectSocket) { projectSocket.close(); projectSocket = null; }
@@ -279,44 +282,26 @@ const connectProjectChat = (pid) => {
   ws.onmessage = (e) => {
     const data = JSON.parse(e.data);
     if (data.type === 'chunk') {
-      const last = projectChatMessages.value[projectChatMessages.value.length - 1];
+      const last = chatMessages.value[chatMessages.value.length - 1];
       if (last && last.role === 'assistant' && last.streaming) {
         last.text += data.chunk;
         scrollChat();
       }
     }
     if (data.type === 'done') {
-      const last = projectChatMessages.value[projectChatMessages.value.length - 1];
+      const last = chatMessages.value[chatMessages.value.length - 1];
       if (last && last.streaming) last.streaming = false;
-      isProjectChatStreaming.value = false;
-      const last = chatMessages.value[chatMessages.value.length - 1];
-      if (last?.role === 'assistant' && last.streaming) { last.text += data.chunk; scrollChat(); }
-    }
-    if (data.type === 'done') {
-      const last = chatMessages.value[chatMessages.value.length - 1];
-      if (last?.streaming) last.streaming = false;
       isChatStreaming.value = false;
     }
     if (data.type === 'error') {
-      isProjectChatStreaming.value = false;
-      projectChatMessages.value.push({ role: 'assistant', text: `Error: ${data.message}`, streaming: false });
+      isChatStreaming.value = false;
+      chatMessages.value.push({ role: 'assistant', text: `Error: ${data.message}`, streaming: false });
     }
   };
 
   ws.onerror = () => {
-    isProjectChatStreaming.value = false;
+    isChatStreaming.value = false;
   };
-};
-
-const sendProjectChatMessage = () => {
-  const q = projectChatInput.value.trim();
-  if (!q || isProjectChatStreaming.value || !projectSocket || projectSocket.readyState !== WebSocket.OPEN) return;
-
-  projectChatMessages.value.push({ role: 'user', text: q, streaming: false });
-  projectChatMessages.value.push({ role: 'assistant', text: '', streaming: true });
-  isProjectChatStreaming.value = true;
-  projectChatInput.value = '';
-  ws.onerror = () => { isChatStreaming.value = false; };
 };
 
 const sendChat = () => {
@@ -330,11 +315,6 @@ const sendChat = () => {
   projectSocket.send(JSON.stringify({ question: q }));
 };
 
-const handleProjectChatKeydown = (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendProjectChatMessage();
-  }
 const handleChatKey = (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
 };
@@ -343,238 +323,9 @@ const scrollChat = () => {
   nextTick(() => { if (chatScrollRef.value) chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight; });
 };
 
-
-
-const copyAllJira = () => {
-  if (!followupResult.value || !followupResult.value.jira_tasks) return;
-  let md = '# Jira Import Task List\n\n';
-  followupResult.value.jira_tasks.forEach(task => {
-    md += `## ${task.title}\n`;
-    md += `- **Component**: ${task.component}\n`;
-    md += `- **Assignee**: ${task.assignee}\n`;
-    md += `- **Priority**: ${task.priority}\n`;
-    md += `- **Due Date**: ${task.due_date}\n\n`;
-    md += `### Description\n${task.description}\n\n---\n\n`;
-  });
-  navigator.clipboard.writeText(md);
-  triggerToast('All Jira tasks copied as Markdown!');
-};
-
-// --- Chatbot Integration ---
-const isChatOpen = ref(false);
-const chatInput = ref('');
-const isChatConnecting = ref(false);
-const isChatStreaming = ref(false);
-const chatMessagesRef = ref(null);
-
-const chatMessages = ref([
-  {
-    role: 'model',
-    content: "Hi! I'm your Meeting Assistant. You can ask me questions about this meeting's decisions, action items, or anything else in the transcript.",
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  }
-]);
-
-let chatSocket = null;
-
-const suggestedQuestions = [
-  "Summarize the key decisions",
-  "What are the high priority actions?",
-  "Who is responsible for what?",
-  "Is there any missing info?"
-];
-
 const renderMarkdown = (text) => {
   if (!text) return '';
   return marked.parse(text, { breaks: true });
-};
-
-const scrollChatToEnd = () => {
-  nextTick(() => {
-    if (chatMessagesRef.value) {
-      chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight;
-    }
-  });
-};
-
-const toggleChat = () => {
-  isChatOpen.value = !isChatOpen.value;
-  if (isChatOpen.value) {
-    scrollChatToEnd();
-  }
-};
-
-const transmitChatMessage = (text, botIndex) => {
-  if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
-    const botMsg = chatMessages.value[botIndex];
-    if (botMsg) {
-      botMsg.content = "Failed to send message. Connection closed.";
-      botMsg.isStreaming = false;
-    }
-    isChatStreaming.value = false;
-    return;
-  }
-
-  const payload = {
-    message: text,
-    transcript: transcript.value || '',
-    analysis_results: {
-      summary: summaryResult.value || null,
-      action_items: actionReportResult.value || null,
-      followup: followupResult.value || null
-    }
-  };
-
-  chatSocket.send(JSON.stringify(payload));
-};
-
-const connectChatSocket = (onOpenCallback) => {
-  isChatConnecting.value = true;
-  
-  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = window.location.host;
-  
-  let chatUrls = [];
-  if (host.includes('localhost') || host.includes('127.0.0.1')) {
-    chatUrls.push(`${wsProtocol}//localhost:8000/ws/chat`);
-    chatUrls.push(`${wsProtocol}//localhost:8001/ws/chat`);
-    chatUrls.push(`${wsProtocol}//127.0.0.1:8000/ws/chat`);
-    chatUrls.push(`${wsProtocol}//127.0.0.1:8001/ws/chat`);
-  } else {
-    chatUrls.push(`${wsProtocol}//${host}/ws/chat`);
-  }
-
-  const tryConnect = (urlIndex) => {
-    if (urlIndex >= chatUrls.length) {
-      isChatConnecting.value = false;
-      isChatStreaming.value = false;
-      const lastBotMsg = chatMessages.value[chatMessages.value.length - 1];
-      if (lastBotMsg && lastBotMsg.isStreaming) {
-        lastBotMsg.content = "Could not establish connection to the chat server.";
-        lastBotMsg.isStreaming = false;
-      }
-      return;
-    }
-
-    const url = chatUrls[urlIndex];
-    
-    try {
-      chatSocket = new WebSocket(url);
-    } catch (e) {
-      console.error(`Failed to create WebSocket for chat on ${url}`, e);
-      tryConnect(urlIndex + 1);
-      return;
-    }
-
-    chatSocket.onopen = () => {
-      isChatConnecting.value = false;
-      if (onOpenCallback) onOpenCallback();
-    };
-
-    chatSocket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        const botMsg = chatMessages.value[chatMessages.value.length - 1];
-        
-        if (data.type === 'chunk') {
-          if (botMsg && botMsg.isStreaming) {
-            botMsg.content += data.chunk;
-            scrollChatToEnd();
-          }
-        } else if (data.type === 'done') {
-          if (botMsg && botMsg.isStreaming) {
-            botMsg.content = data.response || botMsg.content;
-            botMsg.isStreaming = false;
-            scrollChatToEnd();
-          }
-          isChatStreaming.value = false;
-        } else if (data.type === 'error') {
-          if (botMsg && botMsg.isStreaming) {
-            botMsg.content = `Error: ${data.message}`;
-            botMsg.isStreaming = false;
-          }
-          isChatStreaming.value = false;
-        }
-      } catch (e) {
-        console.error("Error parsing chat socket event:", e);
-      }
-    };
-
-    chatSocket.onerror = (err) => {
-      console.warn(`Chat socket error on ${url}:`, err);
-      if (chatSocket.readyState !== WebSocket.OPEN) {
-        chatSocket.close();
-        tryConnect(urlIndex + 1);
-      }
-    };
-
-    chatSocket.onclose = () => {
-      chatSocket = null;
-      isChatStreaming.value = false;
-    };
-  };
-
-  tryConnect(0);
-};
-
-const sendChatMessage = (messageText) => {
-  const textToSend = messageText || chatInput.value.trim();
-  if (!textToSend) return;
-
-  chatMessages.value.push({
-    role: 'user',
-    content: textToSend,
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  });
-
-  if (!messageText) {
-    chatInput.value = '';
-  }
-
-  scrollChatToEnd();
-
-  const botMessageIndex = chatMessages.value.length;
-  chatMessages.value.push({
-    role: 'model',
-    content: '',
-    isStreaming: true,
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  });
-
-  isChatStreaming.value = true;
-
-  if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
-    connectChatSocket(() => {
-      transmitChatMessage(textToSend, botMessageIndex);
-    });
-  } else {
-    transmitChatMessage(textToSend, botMessageIndex);
-  }
-};
-
-const clearChat = () => {
-  chatMessages.value = [
-    {
-      role: 'model',
-      content: "Hi! I'm your Meeting Assistant. You can ask me questions about this meeting's decisions, action items, or anything else in the transcript.",
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-  ];
-  if (chatSocket) {
-    chatSocket.close();
-  }
-};
-
-// ── Utilities ─────────────────────────────────────────────────────────────────
-const renderMarkdown = (text) => {
-  if (!text) return '';
-  return text
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/^#{1,3} (.+)$/gm, '<strong>$1</strong>')
-    .replace(/^[-*] (.+)$/gm, '• $1')
-    .replace(/\n/g, '<br>');
 };
 
 // ── Mount ─────────────────────────────────────────────────────────────────────
@@ -590,205 +341,6 @@ onMounted(() => {
   <div class="app-root" :class="theme === 'light' ? 'light-theme' : 'dark-theme'">
     <div class="glow-bg"></div>
 
-  <div class="app-container">
-    <!-- Header -->
-    <header class="app-header">
-      <div class="logo-area">
-        <div class="logo-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2C6.477 2 2 6.477 2 12C2 17.523 6.477 22 12 22C17.523 22 22 17.523 22 12C22 6.477 17.523 2 12 2ZM13 17H11V15H13V17ZM13 13H11V7H13V13Z" fill="url(#logo-grad)"/>
-            <defs>
-              <linearGradient id="logo-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#818CF8"/>
-                <stop offset="1" stop-color="#C084FC"/>
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-        <h1>Meeting<span>AI</span></h1>
-      </div>
-
-      <div class="agent-status-bar">
-        <div class="agent-chip" :class="{ active: agentSummarizerActive }">
-          <span class="pulse-dot"></span>
-          <span>Summarizer Agent</span>
-        </div>
-        <div class="agent-chip" :class="{ active: agentActionActive }">
-          <span class="pulse-dot"></span>
-          <span>Action Item Agent</span>
-        </div>
-        <div class="agent-chip" :class="{ active: agentFollowupActive }">
-          <span class="pulse-dot"></span>
-          <span>Follow-up & Jira Agent</span>
-        </div>
-      </div>
-
-      <div class="mode-toggle-group">
-        <button class="mode-toggle-btn" :class="{ active: appMode === 'single' }" @click="appMode = 'single'">Single Meeting</button>
-        <button class="mode-toggle-btn" :class="{ active: appMode === 'project' }" @click="appMode = 'project'">Project Chat</button>
-      </div>
-
-      <button class="theme-toggle" @click="toggleTheme" aria-label="Toggle Theme">
-        <svg v-if="theme === 'light'" class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="5"></circle>
-          <line x1="12" y1="1" x2="12" y2="3"></line>
-          <line x1="12" y1="21" x2="12" y2="23"></line>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-          <line x1="1" y1="12" x2="3" y2="12"></line>
-          <line x1="21" y1="12" x2="23" y2="12"></line>
-          <line x1="4.22" y1="19.22" x2="5.64" y2="17.84"></line>
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-        </svg>
-        <svg v-else class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-        </svg>
-      </button>
-    </header>
-
-    <!-- Project Chat Mode -->
-    <main v-if="appMode === 'project'" class="main-content">
-      <!-- Left: Project Manager -->
-      <section class="panel input-panel">
-        <div class="panel-header">
-          <h2>Project Chat</h2>
-          <p class="subtitle">Group meetings into a project and ask questions across all of them.</p>
-        </div>
-
-        <div class="panel-body">
-          <!-- Create Project -->
-          <div class="input-field" style="margin-bottom: 12px;">
-            <label>New Project Name</label>
-            <input
-              type="text"
-              v-model="newProjectName"
-              placeholder="e.g. Q2 Product Planning"
-              class="text-input-field"
-              @keydown.enter="createProject"
-            />
-          </div>
-          <button class="primary-btn" :disabled="isCreatingProject || !newProjectName.trim()" @click="createProject" style="margin-bottom: 20px;">
-            <span class="btn-text">{{ isCreatingProject ? 'Creating...' : 'Create Project' }}</span>
-          </button>
-
-          <!-- Project List -->
-          <div v-if="projects.length" class="project-list">
-            <h4 class="section-label">Your Projects</h4>
-            <div
-              v-for="proj in projects"
-              :key="proj.project_id"
-              class="project-item"
-              :class="{ active: activeProject?.project_id === proj.project_id }"
-              @click="selectProject(proj)"
-            >
-              <span class="project-name">{{ proj.name }}</span>
-              <span class="project-meeting-count">{{ proj.meeting_count }} meeting{{ proj.meeting_count !== 1 ? 's' : '' }}</span>
-            </div>
-          </div>
-
-          <!-- Add Meeting -->
-          <div v-if="activeProject" class="add-meeting-section">
-            <h4 class="section-label">Add Meeting to "{{ activeProject.name }}"</h4>
-            <div class="file-dropzone" style="cursor: pointer;" @click="triggerProjectFileSelect">
-              <input
-                type="file"
-                ref="projectFileInputRef"
-                accept=".txt,.docx,.pdf,.mp3,.wav,.ogg,.m4a,.aac,.mp4,.mov,.avi,.webm"
-                class="hidden-input"
-                @change="handleProjectFileSelect"
-              />
-              <div class="dropzone-content">
-                <svg class="upload-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="17 8 12 3 7 8"></polyline>
-                  <line x1="12" y1="3" x2="12" y2="15"></line>
-                </svg>
-                <p v-if="!projectMeetingFile"><strong>Click to upload</strong> a meeting file</p>
-                <p v-else class="file-name">{{ projectMeetingFile.name }}</p>
-              </div>
-            </div>
-            <button
-              class="primary-btn"
-              :disabled="isAddingMeeting || !projectMeetingFile"
-              @click="addMeetingToProject"
-              style="margin-top: 10px;"
-            >
-              <span class="btn-text">{{ isAddingMeeting ? 'Processing...' : 'Add to Project' }}</span>
-            </button>
-            <p v-if="addMeetingStatus" class="add-meeting-status" :class="{ error: addMeetingStatus.startsWith('Error') }">
-              {{ addMeetingStatus }}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Right: Chat Interface -->
-      <section class="panel results-panel">
-        <div v-if="!activeProject" class="empty-state">
-          <div class="empty-illustration">
-            <div class="empty-circle"></div>
-            <svg class="empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-          </div>
-          <h3>Select or Create a Project</h3>
-          <p>Create a project on the left, add meeting recordings or transcripts, then ask questions that span all meetings.</p>
-        </div>
-
-        <div v-else class="project-chat-container">
-          <div class="project-chat-header">
-            <span class="project-chat-title">{{ activeProject.name }}</span>
-            <span class="project-meeting-badge">
-              {{ projects.find(p => p.project_id === activeProject.project_id)?.meeting_count || 0 }} meetings
-            </span>
-          </div>
-
-          <div v-if="!projects.find(p => p.project_id === activeProject.project_id)?.meeting_count" class="chat-empty-hint">
-            Add at least one meeting on the left to start chatting.
-          </div>
-
-          <!-- Message History -->
-          <div class="chat-messages" ref="chatScrollRef">
-            <div v-if="!projectChatMessages.length" class="chat-starter-hints">
-              <p class="chat-hint-title">Try asking:</p>
-              <div class="chat-hint-chips">
-                <span class="hint-chip" @click="projectChatInput = 'What decisions have been made so far?'; sendProjectChatMessage()">What decisions have been made?</span>
-                <span class="hint-chip" @click="projectChatInput = 'Which action items are still open?'; sendProjectChatMessage()">Which action items are open?</span>
-                <span class="hint-chip" @click="projectChatInput = 'Catch me up on the project so far'; sendProjectChatMessage()">Catch me up on the project</span>
-                <span class="hint-chip" @click="projectChatInput = 'What risks or blockers were mentioned?'; sendProjectChatMessage()">What risks were mentioned?</span>
-              </div>
-            </div>
-
-            <div
-              v-for="(msg, idx) in projectChatMessages"
-              :key="idx"
-              class="chat-message"
-              :class="msg.role"
-            >
-              <div class="message-bubble" :class="{ streaming: msg.streaming }">
-                <span v-if="msg.role === 'user'" class="msg-role-label">You</span>
-                <span v-else class="msg-role-label agent-label">Project Agent</span>
-                <div class="message-text" v-html="renderMarkdown(msg.text)"></div>
-                <span v-if="msg.streaming" class="typing-cursor">▋</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Chat Input -->
-          <div class="chat-input-row">
-            <textarea
-              v-model="projectChatInput"
-              class="chat-textarea"
-              placeholder="Ask anything about your project meetings..."
-              rows="2"
-              :disabled="isProjectChatStreaming"
-              @keydown="handleProjectChatKeydown"
-            ></textarea>
-            <button class="chat-send-btn" :disabled="isProjectChatStreaming || !projectChatInput.trim()" @click="sendProjectChatMessage">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13"></line>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-              </svg>
     <!-- ══ Upload Modal ══ -->
     <Teleport to="body">
       <div v-if="showUpload" class="modal-backdrop" @click.self="closeUpload">
