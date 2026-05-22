@@ -156,6 +156,19 @@ const tickStreamQueues = () => {
 const toastMessage = ref('');
 const showToastActive = ref(false);
 
+// Error State
+const workflowError = ref(null);
+const is503Error = computed(() => {
+  if (!workflowError.value) return false;
+  const msg = workflowError.value.toLowerCase();
+  return msg.includes('503') || msg.includes('unavailable') || msg.includes('high demand') || msg.includes('overloaded');
+});
+
+const retryWorkflow = () => {
+  workflowError.value = null;
+  runWorkflow();
+};
+
 // API Response Store
 const summaryResult = ref(null);
 const actionReportResult = ref(null);
@@ -285,6 +298,12 @@ const runWorkflow = async () => {
   loadingStep.value = 'translate';
   statusMessage.value = 'Connecting to workflow agents...';
 
+  // Clear previous results completely
+  workflowError.value = null;
+  summaryResult.value = null;
+  actionReportResult.value = null;
+  followupResult.value = null;
+
   // Initialize and trigger live streaming queues
   isStreamingActive.value = true;
   summaryQueue = [];
@@ -316,9 +335,9 @@ const runWorkflow = async () => {
 
   const establishConnection = (urlIndex) => {
     if (urlIndex >= wsUrls.length) {
-      alert(`WebSocket connection failed.\n\nReason: A port conflict was detected on port 8000 (likely due to a local PHP built-in server or another service listening on localhost:8000).\n\nSolutions:\n1. Run the FastAPI server on port 8001 instead:\n   uv run uvicorn main:app --port 8001\n\n2. Or, terminate the conflicting PHP process on port 8000:\n   kill -9 <PHP_PID>\n\n(The frontend is configured to automatically try both port 8000 and 8001!)`);
+      workflowError.value = 'WebSocket connection failed.\n\nReason: A port conflict was detected on port 8000 (likely due to a local PHP built-in server or another service listening on localhost:8000).\n\nSolutions:\n1. Run the FastAPI server on port 8001 instead: uv run uvicorn main:app --port 8001\n2. Or, terminate the conflicting PHP process: kill -9 <PHP_PID>';
       isStreamingActive.value = false;
-      viewState.value = 'empty';
+      viewState.value = 'dashboard';
       isAnalyzing.value = false;
       return;
     }
@@ -413,12 +432,13 @@ const runWorkflow = async () => {
           viewState.value = 'dashboard';
           isAnalyzing.value = false;
           socket.close();
+          triggerToast('Workflow analysis completed successfully!');
         } 
         
         else if (data.type === 'error') {
-          alert(`Agent Error: ${data.message}`);
+          workflowError.value = data.message;
           isStreamingActive.value = false;
-          viewState.value = 'empty';
+          viewState.value = 'dashboard';
           isAnalyzing.value = false;
           socket.close();
         }
@@ -434,9 +454,9 @@ const runWorkflow = async () => {
         socket.close();
         establishConnection(urlIndex + 1);
       } else {
-        alert('Workflow connection was interrupted.');
+        workflowError.value = 'Workflow connection was interrupted.';
         isStreamingActive.value = false;
-        viewState.value = 'empty';
+        viewState.value = 'dashboard';
         isAnalyzing.value = false;
       }
     };
@@ -704,6 +724,32 @@ const copyAllJira = () => {
 
         <!-- Output Dashboard -->
         <div v-else-if="viewState === 'dashboard'" class="results-dashboard">
+          <!-- Error Panel -->
+          <div v-if="workflowError" class="workflow-error-panel animate-fade-in">
+            <div class="error-panel-header">
+              <div class="error-title-container">
+                <svg class="error-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <span>Workflow Execution Interrupted</span>
+              </div>
+              <button class="clear-error-btn" @click="workflowError = null" title="Dismiss error">&times;</button>
+            </div>
+            <p class="error-message">
+              {{ is503Error ? 'Google Gemini is currently experiencing temporary high demand and rate limits. Please wait a few seconds and try again.' : workflowError }}
+            </p>
+            <div class="error-actions">
+              <button class="retry-btn-accent" @click="retryWorkflow">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+                </svg>
+                <span>Retry Workflow</span>
+              </button>
+            </div>
+          </div>
+
           <!-- Live Agent Streams Status (Collapsible Panel during active analysis) -->
           <div v-if="isAnalyzing" class="live-progress-overlay">
             <div class="progress-banner-header">
@@ -934,14 +980,14 @@ const copyAllJira = () => {
 
             <!-- 4. JIRA TASKS TAB -->
             <div v-if="activeTab === 'jira'" class="tab-pane active">
-              <div class="jira-header">
+              <div class="jira-header" v-if="followupResult?.jira_tasks?.length">
                 <p class="description">Action items converted to Jira tasks and categorized by department component.</p>
                 <button class="secondary-btn" @click="copyAllJira">
                   <span>Copy All tasks (MD)</span>
                 </button>
               </div>
 
-              <div class="jira-board">
+              <div v-if="followupResult?.jira_tasks?.length" class="jira-board">
                 <div v-for="(tasks, comp) in groupedJiraTasks" :key="comp" class="jira-column">
                   <div class="jira-col-header">
                     <h4>{{ comp }}</h4>
@@ -967,6 +1013,34 @@ const copyAllJira = () => {
                   </div>
                 </div>
               </div>
+
+              <div v-else-if="isAnalyzing" class="jira-board-skeleton">
+                <div class="jira-column-skeleton" v-for="col in ['Engineering', 'Design', 'Marketing']" :key="col">
+                  <div class="jira-col-header-skeleton">
+                    <h4>{{ col }}</h4>
+                    <span class="skeleton-badge">...</span>
+                  </div>
+                  <div class="jira-col-cards-skeleton">
+                    <div class="jira-card-skeleton">
+                      <div class="skeleton-line short"></div>
+                      <div class="skeleton-line"></div>
+                      <div class="skeleton-line medium"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div v-else class="jira-empty-state">
+                <div class="empty-icon-wrap">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="9" y1="3" x2="9" y2="21"></line>
+                    <line x1="15" y1="3" x2="15" y2="21"></line>
+                  </svg>
+                </div>
+                <h3>No Jira Tasks Generated</h3>
+                <p>Tasks will map automatically once the action item agent resolves.</p>
+              </div>
             </div>
 
             <!-- 5. FOLLOW-UP EMAIL TAB -->
@@ -974,9 +1048,9 @@ const copyAllJira = () => {
               <div class="email-editor-header">
                 <div class="subject-line">
                   <span class="prefix">Subject:</span>
-                  <span id="email-subject-val">{{ followupResult?.email_subject }}</span>
+                  <span id="email-subject-val">{{ followupResult?.email_subject || (isAnalyzing ? 'Drafting subject line...' : 'No email subject generated') }}</span>
                 </div>
-                <button class="secondary-btn" @click="copyEmail">
+                <button class="secondary-btn" :disabled="!followupResult" @click="copyEmail">
                   <span class="btn-text">Copy Email Body</span>
                 </button>
               </div>
@@ -987,6 +1061,13 @@ const copyAllJira = () => {
                   class="email-textarea" 
                   spellcheck="false"
                 ></textarea>
+                <div v-else-if="isAnalyzing" class="email-skeleton-textarea">
+                  <span class="skeleton-text">Drafting email content...</span>
+                  <span class="typing-cursor">▋</span>
+                </div>
+                <div v-else class="email-empty-state">
+                  <p>No email draft generated yet. Run the workflow to produce the follow-up draft.</p>
+                </div>
               </div>
             </div>
 
@@ -1168,5 +1249,196 @@ const copyAllJira = () => {
 .inline-consoles {
   margin-top: 0 !important;
   max-width: 100% !important;
+}
+
+/* Jira & Email Skeletons and Empty States */
+.jira-board-skeleton {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 15px;
+  width: 100%;
+}
+
+.jira-column-skeleton {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 12px;
+  height: 250px;
+  display: flex;
+  flex-direction: column;
+}
+
+.jira-col-header-skeleton {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.jira-col-header-skeleton h4 {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.skeleton-badge {
+  width: 18px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.jira-col-cards-skeleton {
+  flex: 1;
+}
+
+.jira-card-skeleton {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--border-radius-sm);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skeleton-line {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  width: 100%;
+}
+
+.skeleton-line.short { width: 40%; }
+.skeleton-line.medium { width: 70%; }
+
+.jira-empty-state, .email-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 50px 20px;
+  color: var(--text-muted);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--border-radius-md);
+  margin-top: 15px;
+}
+
+.empty-icon-wrap {
+  color: var(--text-muted);
+  opacity: 0.5;
+  margin-bottom: 12px;
+}
+
+.jira-empty-state h3, .email-empty-state h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0 0 6px 0;
+}
+
+.jira-empty-state p, .email-empty-state p {
+  font-size: 13px;
+  max-width: 320px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.email-skeleton-textarea {
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.01);
+  border-radius: var(--border-radius-sm);
+  padding: 16px;
+  min-height: 250px;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--text-muted);
+  font-style: italic;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+/* Workflow Error Panel */
+.workflow-error-panel {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--border-radius-md);
+  padding: 16px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.error-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.error-title-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #f87171;
+  font-size: 14px;
+}
+
+.error-icon {
+  color: #f87171;
+}
+
+.clear-error-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.clear-error-btn:hover {
+  color: var(--text-main);
+}
+
+.error-message {
+  font-size: 13px;
+  color: var(--text-main);
+  line-height: 1.5;
+  margin: 0 0 14px 0;
+  white-space: pre-line;
+}
+
+.error-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.retry-btn-accent {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.retry-btn-accent:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.retry-btn-accent:active {
+  transform: translateY(0);
 }
 </style>
