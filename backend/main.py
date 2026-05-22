@@ -99,7 +99,13 @@ async def get_project_detail(project_id: str):
         "project_id": project["project_id"],
         "name": project["name"],
         "meetings": [
-            {"id": m["id"], "name": m["name"], "summary": m["summary"], "actions": m["actions"]}
+            {
+                "id": m["id"],
+                "name": m["name"],
+                "summary": m["summary"],
+                "actions": m["actions"],
+                "followup": m.get("followup", {})
+            }
             for m in project["meetings"]
         ],
     }
@@ -136,9 +142,11 @@ async def add_meeting_to_project(project_id: str, file: UploadFile = File(...)):
                 collect(stream_meeting_summarizer, transcript),
                 collect(stream_action_item_agent, transcript),
             )
+            # Draft followup email and Jira tasks using stream_followup_agent
+            followup_data = await collect(stream_followup_agent, summary_data, actions_data)
             root.update(output={"meetings_analyzed": 1})
 
-    await db.add_meeting(project_id, file.filename or "", transcript, summary_data, actions_data)
+    await db.add_meeting(project_id, file.filename or "", transcript, summary_data, actions_data, followup_data)
     total = await db.meeting_count(project_id)
 
     # Regenerate project summary in the background so the next GET is fresh
@@ -148,8 +156,38 @@ async def add_meeting_to_project(project_id: str, file: UploadFile = File(...)):
         "meeting_name": file.filename,
         "summary": summary_data,
         "actions": actions_data,
+        "followup": followup_data,
         "total_meetings": total,
     }
+
+
+@app.post("/project/{project_id}/meeting/{meeting_id}/followup")
+async def generate_meeting_followup(project_id: str, meeting_id: int):
+    project = await db.get_project(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    meeting = await db.get_meeting(project_id, meeting_id)
+    if meeting is None:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    client = make_client()
+    summary_data = meeting["summary"]
+    actions_data = meeting["actions"]
+
+    async def collect(stream_fn, *args) -> dict:
+        accumulated = ""
+        async for chunk in stream_fn(client, *args):
+            accumulated += chunk
+        return parse_json(accumulated)
+
+    try:
+        followup_data = await collect(stream_followup_agent, summary_data, actions_data)
+        await db.save_meeting_followup(project_id, meeting_id, followup_data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate followup: {str(e)}")
+
+    return {"followup": followup_data}
 
 
 async def _refresh_project_summary(project_id: str) -> None:

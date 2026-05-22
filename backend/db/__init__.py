@@ -29,6 +29,11 @@ async def init_db() -> None:
             await db.execute("ALTER TABLE projects ADD COLUMN project_summary TEXT")
         except Exception:
             pass
+        # migrate: add followup column if it doesn't exist yet
+        try:
+            await db.execute("ALTER TABLE meetings ADD COLUMN followup TEXT")
+        except Exception:
+            pass
         await db.commit()
 
 
@@ -64,7 +69,7 @@ async def get_project(project_id: str) -> dict | None:
             return None
         project = dict(row)
         async with db.execute(
-            "SELECT id, name, transcript, summary, actions FROM meetings WHERE project_id = ? ORDER BY id ASC",
+            "SELECT id, name, transcript, summary, actions, followup FROM meetings WHERE project_id = ? ORDER BY id ASC",
             (project_id,),
         ) as cursor:
             meetings = await cursor.fetchall()
@@ -75,17 +80,18 @@ async def get_project(project_id: str) -> dict | None:
             "transcript": m["transcript"],
             "summary": json.loads(m["summary"] or "{}"),
             "actions": json.loads(m["actions"] or "{}"),
+            "followup": json.loads(m["followup"] or "{}"),
         }
         for m in meetings
     ]
     return project
 
 
-async def add_meeting(project_id: str, name: str, transcript: str, summary: dict, actions: dict) -> int:
+async def add_meeting(project_id: str, name: str, transcript: str, summary: dict, actions: dict, followup: dict) -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
-            "INSERT INTO meetings (project_id, name, transcript, summary, actions) VALUES (?, ?, ?, ?, ?)",
-            (project_id, name, transcript, json.dumps(summary), json.dumps(actions)),
+            "INSERT INTO meetings (project_id, name, transcript, summary, actions, followup) VALUES (?, ?, ?, ?, ?, ?)",
+            (project_id, name, transcript, json.dumps(summary), json.dumps(actions), json.dumps(followup)),
         )
         await db.commit()
         return cursor.lastrowid
@@ -118,3 +124,34 @@ async def get_project_summary(project_id: str) -> dict | None:
     if row is None or row[0] is None:
         return None
     return json.loads(row[0])
+
+
+async def get_meeting(project_id: str, meeting_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT id, project_id, name, transcript, summary, actions, followup FROM meetings WHERE project_id = ? AND id = ?",
+            (project_id, meeting_id),
+        ) as cursor:
+            row = await cursor.fetchone()
+        if row is None:
+            return None
+        m = dict(row)
+        return {
+            "id": m["id"],
+            "project_id": m["project_id"],
+            "name": m["name"],
+            "transcript": m["transcript"],
+            "summary": json.loads(m["summary"] or "{}"),
+            "actions": json.loads(m["actions"] or "{}"),
+            "followup": json.loads(m["followup"] or "{}"),
+        }
+
+
+async def save_meeting_followup(project_id: str, meeting_id: int, followup: dict) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE meetings SET followup = ? WHERE project_id = ? AND id = ?",
+            (json.dumps(followup), project_id, meeting_id),
+        )
+        await db.commit()

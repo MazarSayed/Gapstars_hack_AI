@@ -87,6 +87,78 @@ const activeMeeting = computed(() => {
   if (!activeProject.value || activeMeetingId.value === null) return null;
   return activeProject.value.meetings?.find(m => m.id === activeMeetingId.value) || null;
 });
+
+// ── Followup & Jira ───────────────────────────────────────────────────────────
+const isGeneratingFollowup = ref(false);
+
+const groupedJiraTasks = computed(() => {
+  const tasks = activeMeeting.value?.followup?.jira_tasks || [];
+  const groups = {
+    'Engineering': [],
+    'Design': [],
+    'Marketing': [],
+    'Product': [],
+    'General': []
+  };
+  tasks.forEach(t => {
+    const comp = t.component || 'General';
+    if (!groups[comp]) groups[comp] = [];
+    groups[comp].push(t);
+  });
+  Object.keys(groups).forEach(k => {
+    if (groups[k].length === 0 && k !== 'Engineering' && k !== 'Design' && k !== 'Product') {
+      delete groups[k];
+    }
+  });
+  return groups;
+});
+
+const generateFollowup = async () => {
+  if (!activeProjectId.value || !activeMeetingId.value || isGeneratingFollowup.value) return;
+  isGeneratingFollowup.value = true;
+  try {
+    const res = await fetch(`${getBase()}/project/${activeProjectId.value}/meeting/${activeMeetingId.value}/followup`, {
+      method: 'POST'
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (activeMeeting.value) {
+        activeMeeting.value.followup = data.followup;
+      }
+      showToast('Follow-up and Jira tasks generated successfully!');
+    } else {
+      const err = await res.json().catch(() => ({ detail: 'Failed to generate' }));
+      showToast(`Error: ${err.detail}`);
+    }
+  } catch (e) {
+    showToast(`Error: ${e.message}`);
+  } finally {
+    isGeneratingFollowup.value = false;
+  }
+};
+
+const copyAllJira = () => {
+  const tasks = activeMeeting.value?.followup?.jira_tasks || [];
+  if (!tasks.length) return;
+  const md = tasks.map(t => {
+    return `### [JIRA] ${t.title}\n- **Component:** ${t.component}\n- **Assignee:** ${t.assignee}\n- **Priority:** ${t.priority}\n- **Due Date:** ${t.due_date}\n\n**Description:**\n${t.description}`;
+  }).join('\n\n---\n\n');
+  navigator.clipboard.writeText(md);
+  showToast('Copied all Jira tasks to clipboard');
+};
+
+const copyJiraTask = (t) => {
+  const md = `### [JIRA] ${t.title}\n- **Component:** ${t.component}\n- **Assignee:** ${t.assignee}\n- **Priority:** ${t.priority}\n- **Due Date:** ${t.due_date}\n\n**Description:**\n${t.description}`;
+  navigator.clipboard.writeText(md);
+  showToast(`Copied "${t.title}" to clipboard`);
+};
+
+const copyEmail = () => {
+  const body = activeMeeting.value?.followup?.email_body || '';
+  if (!body) return;
+  navigator.clipboard.writeText(body);
+  showToast('Copied email body to clipboard');
+};
 const totalMeetings = computed(() =>
   sidebarProjects.value.reduce((s, p) => s + p.meeting_count, 0)
 );
@@ -799,6 +871,8 @@ onMounted(() => {
                 <button class="tab-btn" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">Overview</button>
                 <button class="tab-btn" :class="{ active: activeTab === 'summary' }" @click="activeTab = 'summary'">Summary</button>
                 <button class="tab-btn" :class="{ active: activeTab === 'actions' }" @click="activeTab = 'actions'">Action Items</button>
+                <button class="tab-btn" :class="{ active: activeTab === 'jira' }" @click="activeTab = 'jira'">Jira Tasks</button>
+                <button class="tab-btn" :class="{ active: activeTab === 'email' }" @click="activeTab = 'email'">Follow-up Email</button>
               </nav>
 
               <div class="tab-contents">
@@ -929,6 +1003,92 @@ onMounted(() => {
                   </div>
                 </div>
 
+                <!-- Jira Tasks tab -->
+                <div v-if="activeTab === 'jira'" class="tab-pane active">
+                  <div v-if="isGeneratingFollowup" class="followup-generating-state">
+                    <span class="spinner-large"></span>
+                    <h3>Generating Follow-up Details</h3>
+                    <p>Creating Jira tasks and email drafts for this meeting...</p>
+                  </div>
+                  <div v-else-if="!activeMeeting.followup || !activeMeeting.followup.jira_tasks || !activeMeeting.followup.jira_tasks.length" class="followup-empty-state">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line></svg>
+                    <h3>No Jira tasks generated</h3>
+                    <p>Generate follow-up email drafts and Jira-ready tickets for this meeting.</p>
+                    <button class="primary-btn" style="margin-top: 12px; width: auto;" @click="generateFollowup">
+                      Generate Follow-up
+                    </button>
+                  </div>
+                  <template v-else>
+                    <div class="jira-header">
+                      <p class="description">Action items converted to Jira tasks and categorized by department component.</p>
+                      <button class="secondary-btn" @click="copyAllJira">
+                        <span>Copy All tasks (MD)</span>
+                      </button>
+                    </div>
+
+                    <div class="jira-board">
+                      <div v-for="(tasks, comp) in groupedJiraTasks" :key="comp" class="jira-column">
+                        <div class="jira-col-header">
+                          <h4>{{ comp }}</h4>
+                          <span class="jira-task-count">{{ tasks.length }}</span>
+                        </div>
+                        <div class="jira-col-cards">
+                          <div v-for="(task, idx) in tasks" :key="idx" class="jira-card">
+                            <div class="jira-card-title">{{ task.title }}</div>
+                            <div class="jira-card-desc">{{ task.description }}</div>
+                            <div class="jira-card-footer">
+                              <span class="jira-card-assignee">👤 {{ task.assignee }}</span>
+                              <div class="jira-card-meta">
+                                <span class="jira-prio-badge" :class="task.priority?.toLowerCase()">{{ task.priority }}</span>
+                                <button class="copy-card-btn" @click="copyJiraTask(task)" title="Copy Jira Ticket Markdown">
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+
+                <!-- Follow-up Email tab -->
+                <div v-if="activeTab === 'email'" class="tab-pane active">
+                  <div v-if="isGeneratingFollowup" class="followup-generating-state">
+                    <span class="spinner-large"></span>
+                    <h3>Generating Follow-up Details</h3>
+                    <p>Creating Jira tasks and email drafts for this meeting...</p>
+                  </div>
+                  <div v-else-if="!activeMeeting.followup || !activeMeeting.followup.email_body" class="followup-empty-state">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                    <h3>No follow-up email generated</h3>
+                    <p>Generate a professional follow-up email draft and Jira-ready tickets for this meeting.</p>
+                    <button class="primary-btn" style="margin-top: 12px; width: auto;" @click="generateFollowup">
+                      Generate Follow-up
+                    </button>
+                  </div>
+                  <template v-else>
+                    <div class="email-editor-header">
+                      <div class="subject-line">
+                        <span class="prefix">Subject:</span>
+                        <span id="email-subject-val">{{ activeMeeting.followup.email_subject }}</span>
+                      </div>
+                      <button class="secondary-btn" @click="copyEmail">
+                        <span class="btn-text">Copy Email Body</span>
+                      </button>
+                    </div>
+                    <div class="email-editor-container">
+                      <textarea 
+                        v-model="activeMeeting.followup.email_body" 
+                        class="email-textarea" 
+                        spellcheck="false"
+                      ></textarea>
+                    </div>
+                  </template>
+                </div>
               </div>
             </div>
           </div>
@@ -2321,4 +2481,80 @@ body.light-theme .chat-bubble-content td {
 
 .animate-fade-in { animation: fadeIn 0.3s ease; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; } }
+
+/* Follow-up & Jira specific styling */
+.followup-generating-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: var(--border-radius-lg);
+  margin: 20px 0;
+}
+
+.followup-generating-state h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 16px 0 8px 0;
+}
+
+.followup-generating-state p {
+  font-size: 14px;
+  color: var(--text-muted);
+  max-width: 400px;
+}
+
+.followup-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: var(--border-radius-lg);
+  margin: 20px 0;
+}
+
+.followup-empty-state svg {
+  color: var(--primary);
+  opacity: 0.8;
+  margin-bottom: 16px;
+}
+
+.followup-empty-state h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.followup-empty-state p {
+  font-size: 14px;
+  color: var(--text-muted);
+  max-width: 400px;
+  margin-bottom: 16px;
+}
+
+.spinner-large {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(99, 102, 241, 0.15);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spinLarge 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spinLarge {
+  to { transform: rotate(360deg); }
+}
 </style>
+
