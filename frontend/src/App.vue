@@ -517,6 +517,258 @@ const copyAllJira = () => {
   triggerToast('All Jira tasks copied as Markdown!');
 };
 
+// --- Chatbot Integration ---
+const isChatOpen = ref(false);
+const chatInput = ref('');
+const isChatConnecting = ref(false);
+const isChatStreaming = ref(false);
+const chatMessagesRef = ref(null);
+
+const chatMessages = ref([
+  {
+    role: 'model',
+    content: "Hi! I'm your Meeting Assistant. You can ask me questions about this meeting's decisions, action items, or anything else in the transcript.",
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+]);
+
+let chatSocket = null;
+
+const suggestedQuestions = [
+  "Summarize the key decisions",
+  "What are the high priority actions?",
+  "Who is responsible for what?",
+  "Is there any missing info?"
+];
+
+const renderMarkdown = (text) => {
+  if (!text) return '';
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Fenced Code blocks
+  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+    return `<pre class="code-block"><div class="code-header">${lang || 'code'}</div><code>${code.trim()}</code></pre>`;
+  });
+
+  // Inline code
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // Bold
+  html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
+
+  // Italics
+  html = html.replace(/\*([^\*]+)\*/g, '<em>$1</em>');
+
+  // Headers
+  html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+  html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+  html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+  // Lists (bullet and numbered)
+  const paragraphs = html.split('\n\n');
+  const processed = paragraphs.map(p => {
+    if (p.trim().startsWith('- ') || p.trim().startsWith('* ')) {
+      const items = p.split('\n').map(line => {
+        const itemText = line.replace(/^[-*]\s+/, '');
+        return `<li>${itemText}</li>`;
+      }).join('');
+      return `<ul class="chat-list">${items}</ul>`;
+    }
+    if (/^\d+\.\s+/.test(p.trim())) {
+      const items = p.split('\n').map(line => {
+        const itemText = line.replace(/^\d+\.\s+/, '');
+        return `<li>${itemText}</li>`;
+      }).join('');
+      return `<ol class="chat-list">${items}</ol>`;
+    }
+    if (p.trim() && !p.trim().startsWith('<h') && !p.trim().startsWith('<pre')) {
+      return `<p>${p.replace(/\n/g, '<br>')}</p>`;
+    }
+    return p;
+  });
+
+  return processed.join('');
+};
+
+const scrollChatToEnd = () => {
+  nextTick(() => {
+    if (chatMessagesRef.value) {
+      chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight;
+    }
+  });
+};
+
+const toggleChat = () => {
+  isChatOpen.value = !isChatOpen.value;
+  if (isChatOpen.value) {
+    scrollChatToEnd();
+  }
+};
+
+const transmitChatMessage = (text, botIndex) => {
+  if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
+    const botMsg = chatMessages.value[botIndex];
+    if (botMsg) {
+      botMsg.content = "Failed to send message. Connection closed.";
+      botMsg.isStreaming = false;
+    }
+    isChatStreaming.value = false;
+    return;
+  }
+
+  const payload = {
+    message: text,
+    transcript: transcript.value || '',
+    analysis_results: {
+      summary: summaryResult.value || null,
+      action_items: actionReportResult.value || null,
+      followup: followupResult.value || null
+    }
+  };
+
+  chatSocket.send(JSON.stringify(payload));
+};
+
+const connectChatSocket = (onOpenCallback) => {
+  isChatConnecting.value = true;
+  
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.host;
+  
+  let chatUrls = [];
+  if (host.includes('localhost') || host.includes('127.0.0.1')) {
+    chatUrls.push(`${wsProtocol}//localhost:8000/ws/chat`);
+    chatUrls.push(`${wsProtocol}//localhost:8001/ws/chat`);
+    chatUrls.push(`${wsProtocol}//127.0.0.1:8000/ws/chat`);
+    chatUrls.push(`${wsProtocol}//127.0.0.1:8001/ws/chat`);
+  } else {
+    chatUrls.push(`${wsProtocol}//${host}/ws/chat`);
+  }
+
+  const tryConnect = (urlIndex) => {
+    if (urlIndex >= chatUrls.length) {
+      isChatConnecting.value = false;
+      isChatStreaming.value = false;
+      const lastBotMsg = chatMessages.value[chatMessages.value.length - 1];
+      if (lastBotMsg && lastBotMsg.isStreaming) {
+        lastBotMsg.content = "Could not establish connection to the chat server.";
+        lastBotMsg.isStreaming = false;
+      }
+      return;
+    }
+
+    const url = chatUrls[urlIndex];
+    
+    try {
+      chatSocket = new WebSocket(url);
+    } catch (e) {
+      console.error(`Failed to create WebSocket for chat on ${url}`, e);
+      tryConnect(urlIndex + 1);
+      return;
+    }
+
+    chatSocket.onopen = () => {
+      isChatConnecting.value = false;
+      if (onOpenCallback) onOpenCallback();
+    };
+
+    chatSocket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const botMsg = chatMessages.value[chatMessages.value.length - 1];
+        
+        if (data.type === 'chunk') {
+          if (botMsg && botMsg.isStreaming) {
+            botMsg.content += data.chunk;
+            scrollChatToEnd();
+          }
+        } else if (data.type === 'done') {
+          if (botMsg && botMsg.isStreaming) {
+            botMsg.content = data.response || botMsg.content;
+            botMsg.isStreaming = false;
+            scrollChatToEnd();
+          }
+          isChatStreaming.value = false;
+        } else if (data.type === 'error') {
+          if (botMsg && botMsg.isStreaming) {
+            botMsg.content = `Error: ${data.message}`;
+            botMsg.isStreaming = false;
+          }
+          isChatStreaming.value = false;
+        }
+      } catch (e) {
+        console.error("Error parsing chat socket event:", e);
+      }
+    };
+
+    chatSocket.onerror = (err) => {
+      console.warn(`Chat socket error on ${url}:`, err);
+      if (chatSocket.readyState !== WebSocket.OPEN) {
+        chatSocket.close();
+        tryConnect(urlIndex + 1);
+      }
+    };
+
+    chatSocket.onclose = () => {
+      chatSocket = null;
+      isChatStreaming.value = false;
+    };
+  };
+
+  tryConnect(0);
+};
+
+const sendChatMessage = (messageText) => {
+  const textToSend = messageText || chatInput.value.trim();
+  if (!textToSend) return;
+
+  chatMessages.value.push({
+    role: 'user',
+    content: textToSend,
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  });
+
+  if (!messageText) {
+    chatInput.value = '';
+  }
+
+  scrollChatToEnd();
+
+  const botMessageIndex = chatMessages.value.length;
+  chatMessages.value.push({
+    role: 'model',
+    content: '',
+    isStreaming: true,
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  });
+
+  isChatStreaming.value = true;
+
+  if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
+    connectChatSocket(() => {
+      transmitChatMessage(textToSend, botMessageIndex);
+    });
+  } else {
+    transmitChatMessage(textToSend, botMessageIndex);
+  }
+};
+
+const clearChat = () => {
+  chatMessages.value = [
+    {
+      role: 'model',
+      content: "Hi! I'm your Meeting Assistant. You can ask me questions about this meeting's decisions, action items, or anything else in the transcript.",
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }
+  ];
+  if (chatSocket) {
+    chatSocket.close();
+  }
+};
+
 </script>
 
 <template>
@@ -1089,6 +1341,92 @@ const copyAllJira = () => {
       </section>
     </main>
 
+    <!-- Chatbot Widget -->
+    <div class="chatbot-widget" :class="{ open: isChatOpen }">
+      <!-- Chat Toggle Button -->
+      <button class="chat-toggle-btn" @click="toggleChat" aria-label="Toggle Chatbot">
+        <svg v-if="!isChatOpen" class="chat-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <svg v-else class="close-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+        <span v-if="!isChatOpen" class="chat-badge-pulse"></span>
+      </button>
+
+      <!-- Chat Window Panel -->
+      <div v-if="isChatOpen" class="chat-window-panel">
+        <div class="chat-window-header">
+          <div class="chat-window-title">
+            <span class="active-dot"></span>
+            <h4>Meeting AI Chatbot</h4>
+          </div>
+          <button class="chat-clear-btn" @click="clearChat" title="Clear Conversation">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              <line x1="10" y1="11" x2="10" y2="17"></line>
+              <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Chat Suggested Questions -->
+        <div class="chat-suggestions" v-if="chatMessages.length <= 1">
+          <span class="suggestions-label">Suggestions:</span>
+          <div class="suggestions-list">
+            <button 
+              v-for="(q, idx) in suggestedQuestions" 
+              :key="idx" 
+              class="suggestion-chip"
+              @click="sendChatMessage(q)"
+            >
+              {{ q }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Chat Messages Container -->
+        <div class="chat-messages-container" ref="chatMessagesRef">
+          <div 
+            v-for="(msg, idx) in chatMessages" 
+            :key="idx" 
+            class="chat-bubble-wrap" 
+            :class="msg.role"
+          >
+            <div class="chat-bubble">
+              <div v-if="msg.role === 'model'" class="chat-bubble-content" v-html="renderMarkdown(msg.content)"></div>
+              <div v-else class="chat-bubble-content">{{ msg.content }}</div>
+              
+              <span class="chat-timestamp">{{ msg.timestamp }}</span>
+              <span v-if="msg.isStreaming && !msg.content" class="chat-loader-dots">
+                <span></span><span></span><span></span>
+              </span>
+              <span class="typing-cursor" v-if="msg.isStreaming && msg.content">▋</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Input Form -->
+        <form class="chat-input-form" @submit.prevent="sendChatMessage(null)">
+          <input 
+            type="text" 
+            v-model="chatInput" 
+            placeholder="Ask about decisions, actions..." 
+            :disabled="isChatStreaming"
+            aria-label="Chat input"
+          >
+          <button type="submit" class="chat-send-btn" :disabled="!chatInput.trim() || isChatStreaming" aria-label="Send message">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </form>
+      </div>
+    </div>
+
     <!-- Toast Notification Banner -->
     <div 
       v-if="showToastActive" 
@@ -1452,5 +1790,367 @@ const copyAllJira = () => {
 
 .retry-btn-accent:active {
   transform: translateY(0);
+}
+
+/* Chatbot Styles */
+.chatbot-widget {
+  position: fixed;
+  bottom: 25px;
+  right: 25px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 15px;
+  font-family: var(--font-sans);
+}
+
+.chat-toggle-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, hsl(244, 90%, 65%), hsl(270, 90%, 65%));
+  border: none;
+  cursor: pointer;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s;
+  position: relative;
+}
+
+.chat-toggle-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.55);
+}
+
+.chat-badge-pulse {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 10px;
+  height: 10px;
+  background-color: var(--success);
+  border-radius: 50%;
+  border: 2px solid var(--bg-app);
+}
+
+.chat-window-panel {
+  width: 380px;
+  height: 520px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-main);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: chatSlideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.1) forwards;
+}
+
+@keyframes chatSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.chat-window-header {
+  background: rgba(0, 0, 0, 0.15);
+  border-bottom: 1px solid var(--border-color);
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chat-window-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-window-title h4 {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-main);
+}
+
+.active-dot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--success);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--success);
+  animation: chatPulse 1.8s infinite;
+}
+
+@keyframes chatPulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+
+.chat-clear-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: var(--transition-smooth);
+}
+
+.chat-clear-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--danger);
+}
+
+.chat-suggestions {
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.suggestions-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.suggestions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+.suggestion-chip {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: var(--transition-smooth);
+  line-height: 1.25;
+}
+
+.suggestion-chip:hover {
+  border-color: var(--primary);
+  background: var(--primary-glow);
+}
+
+.chat-messages-container {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.chat-bubble-wrap {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.chat-bubble-wrap.user {
+  align-items: flex-end;
+}
+
+.chat-bubble-wrap.model {
+  align-items: flex-start;
+}
+
+.chat-bubble {
+  max-width: 85%;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  position: relative;
+}
+
+.chat-bubble-wrap.user .chat-bubble {
+  background: linear-gradient(135deg, hsl(244, 80%, 60%), hsl(270, 80%, 60%));
+  color: white;
+  border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 var(--border-radius-sm);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+}
+
+.chat-bubble-wrap.model .chat-bubble {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: var(--border-radius-sm) var(--border-radius-sm) var(--border-radius-sm) 0;
+}
+
+/* Markdown styling inside bubbles */
+.chat-bubble-content p {
+  margin: 0 0 8px 0;
+}
+
+.chat-bubble-content p:last-child {
+  margin-bottom: 0;
+}
+
+.chat-bubble-content code {
+  font-family: 'Courier New', Courier, monospace;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 11.5px;
+  color: #f472b6;
+}
+
+.light-theme .chat-bubble-content code {
+  color: #db2777;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.chat-bubble-content ul.chat-list, .chat-bubble-content ol.chat-list {
+  margin: 0 0 8px 16px;
+  padding-left: 0;
+}
+
+.chat-bubble-content li {
+  margin-bottom: 4px;
+}
+
+.chat-bubble-content pre.code-block {
+  background: #0f172a;
+  border-radius: 6px;
+  margin: 8px 0;
+  padding: 8px 12px;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.code-header {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+.chat-timestamp {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 4px;
+  display: block;
+  text-align: right;
+}
+
+.chat-bubble-wrap.model .chat-timestamp {
+  color: var(--text-muted);
+}
+
+.chat-input-form {
+  padding: 12px;
+  border-top: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.15);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.chat-input-form input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-main);
+  padding: 9px 12px;
+  font-size: 13px;
+  outline: none;
+  transition: var(--transition-smooth);
+}
+
+.chat-input-form input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+.chat-send-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-bounce);
+}
+
+.chat-send-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  background: hsl(var(--primary-hue), 90%, 70%);
+}
+
+.chat-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-loader-dots {
+  display: inline-flex;
+  gap: 4px;
+  padding: 6px 0;
+}
+
+.chat-loader-dots span {
+  width: 6px;
+  height: 6px;
+  background-color: var(--text-muted);
+  border-radius: 50%;
+  animation: chatDotBlink 1.4s infinite both;
+}
+
+.chat-loader-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.chat-loader-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes chatDotBlink {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+
+@media (max-width: 480px) {
+  .chat-window-panel {
+    width: calc(100vw - 30px);
+    height: calc(100vh - 120px);
+    max-height: 500px;
+  }
 }
 </style>

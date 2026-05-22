@@ -8,6 +8,7 @@ from agents.meeting_summarizer import stream_meeting_summarizer
 from agents.action_item_agent import stream_action_item_agent
 from agents.followup_agent import stream_followup_agent
 from agents.translator_agent import translate_transcript
+from agents.chat_agent import stream_chat_agent
 
 
 SAMPLE_TRANSCRIPT = """
@@ -109,6 +110,52 @@ async def ws_summarize(websocket: WebSocket):
         await run_and_stream(stream_followup_agent, "followup", summary_data, actions_data)
 
         await websocket.send_json({"type": "complete"})
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        try:
+            await websocket.send_json({"type": "error", "message": str(e)})
+        except Exception:
+            pass
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+
+@app.websocket("/ws/chat")
+async def ws_chat(websocket: WebSocket):
+    await websocket.accept()
+    chat_history = []
+    try:
+        while True:
+            data = await websocket.receive_json()
+            user_message = data.get("message", "")
+            transcript = data.get("transcript", "")
+            analysis_results = data.get("analysis_results", None)
+
+            if not user_message.strip():
+                continue
+
+            client = _make_client()
+            accumulated_response = ""
+
+            async for chunk in stream_chat_agent(
+                client=client,
+                message=user_message,
+                history=chat_history,
+                transcript=transcript,
+                analysis_results=analysis_results,
+            ):
+                accumulated_response += chunk
+                await websocket.send_json({"type": "chunk", "chunk": chunk})
+
+            await websocket.send_json({"type": "done", "response": accumulated_response})
+
+            chat_history.append({"role": "user", "content": user_message})
+            chat_history.append({"role": "model", "content": accumulated_response})
 
     except WebSocketDisconnect:
         pass
