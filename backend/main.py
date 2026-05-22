@@ -8,12 +8,15 @@ from agents.action_item_agent import stream_action_item_agent
 from agents.followup_agent import stream_followup_agent
 from agents.translator_agent import translate_transcript
 from agents.project_chat_agent import stream_project_chat
+<<<<<<< HEAD
 from agents.chat_agent import stream_chat_agent
 from utils import make_client, parse_json
+=======
+from agents.project_summary_agent import stream_project_summary
+from utils import get_langfuse, make_client, parse_json, propagate_attributes
+>>>>>>> 4fb778d (tracing and project ui)
 from utils.file_processor import extract_transcript
-
-# In-memory project store: { project_id: { name, meetings: [...] } }
-_projects: dict[str, dict] = {}
+import db
 
 
 SAMPLE_TRANSCRIPT = """
@@ -60,6 +63,11 @@ Sarah: I don't have that info yet — I'll check with finance and get back to ev
 
 app = FastAPI(title="Meeting Workflow API")
 
+
+@app.on_event("startup")
+async def startup():
+    await db.init_db()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -78,22 +86,33 @@ class CreateProjectRequest(BaseModel):
 
 @app.post("/project")
 async def create_project(body: CreateProjectRequest):
-    pid = str(uuid.uuid4())[:8]
-    _projects[pid] = {"name": body.name, "meetings": []}
-    return {"project_id": pid, "name": body.name}
+    return await db.create_project(body.name)
 
 
 @app.get("/project")
 async def list_projects():
-    return [
-        {"project_id": pid, "name": p["name"], "meeting_count": len(p["meetings"])}
-        for pid, p in _projects.items()
-    ]
+    return await db.list_projects()
+
+
+@app.get("/project/{project_id}")
+async def get_project_detail(project_id: str):
+    project = await db.get_project(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return {
+        "project_id": project["project_id"],
+        "name": project["name"],
+        "meetings": [
+            {"id": m["id"], "name": m["name"], "summary": m["summary"], "actions": m["actions"]}
+            for m in project["meetings"]
+        ],
+    }
 
 
 @app.post("/project/{project_id}/meeting")
 async def add_meeting_to_project(project_id: str, file: UploadFile = File(...)):
-    if project_id not in _projects:
+    project = await db.get_project(project_id)
+    if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
     data = await file.read()
@@ -105,45 +124,87 @@ async def add_meeting_to_project(project_id: str, file: UploadFile = File(...)):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    send_lock = asyncio.Lock()
-
     async def collect(stream_fn, *args) -> dict:
         accumulated = ""
         async for chunk in stream_fn(client, *args):
             accumulated += chunk
         return parse_json(accumulated)
 
-    summary_data, actions_data = await asyncio.gather(
-        collect(stream_meeting_summarizer, transcript),
-        collect(stream_action_item_agent, transcript),
-    )
+    with propagate_attributes(metadata={"project_id": project_id, "filename": file.filename}):
+        with get_langfuse().start_as_current_observation(
+            as_type="span",
+            name="meeting-upload",
+            input={"project_id": project_id, "filename": file.filename},
+        ) as root:
+            summary_data, actions_data = await asyncio.gather(
+                collect(stream_meeting_summarizer, transcript),
+                collect(stream_action_item_agent, transcript),
+            )
+            root.update(output={"meetings_analyzed": 1})
 
-    meeting = {
-        "name": file.filename,
-        "transcript": transcript,
-        "summary": summary_data,
-        "actions": actions_data,
-    }
-    _projects[project_id]["meetings"].append(meeting)
+    await db.add_meeting(project_id, file.filename or "", transcript, summary_data, actions_data)
+    total = await db.meeting_count(project_id)
+
+    # Regenerate project summary in the background so the next GET is fresh
+    asyncio.create_task(_refresh_project_summary(project_id))
 
     return {
         "meeting_name": file.filename,
         "summary": summary_data,
         "actions": actions_data,
-        "total_meetings": len(_projects[project_id]["meetings"]),
+        "total_meetings": total,
     }
+
+
+async def _refresh_project_summary(project_id: str) -> None:
+    try:
+        project = await db.get_project(project_id)
+        if not project or not project["meetings"]:
+            return
+        client = make_client()
+        with propagate_attributes(metadata={"project_id": project_id}):
+            with get_langfuse().start_as_current_observation(as_type="span", name="project-summary-refresh"):
+                accumulated = ""
+                async for chunk in stream_project_summary(client, project["meetings"]):
+                    accumulated += chunk
+                summary = parse_json(accumulated)
+        summary["meetings_analyzed"] = len(project["meetings"])
+        await db.save_project_summary(project_id, summary)
+    except Exception:
+        pass  # summary is best-effort; don't fail the meeting upload
+
+
+@app.get("/project/{project_id}/summary")
+async def get_project_summary(project_id: str, refresh: bool = False):
+    project = await db.get_project(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if not project["meetings"]:
+        raise HTTPException(status_code=422, detail="No meetings in this project yet")
+
+    if refresh or (cached := await db.get_project_summary(project_id)) is None:
+        client = make_client()
+        accumulated = ""
+        async for chunk in stream_project_summary(client, project["meetings"]):
+            accumulated += chunk
+        cached = parse_json(accumulated)
+        cached["meetings_analyzed"] = len(project["meetings"])
+        await db.save_project_summary(project_id, cached)
+
+    return cached
 
 
 @app.websocket("/ws/project/{project_id}/chat")
 async def ws_project_chat(websocket: WebSocket, project_id: str):
     await websocket.accept()
+    session_id = str(uuid.uuid4())
     try:
-        if project_id not in _projects:
+        project = await db.get_project(project_id)
+        if project is None:
             await websocket.send_json({"type": "error", "message": "Project not found"})
             await websocket.close()
             return
 
-        project = _projects[project_id]
         client = make_client()
         history: list[dict] = []
 
@@ -158,9 +219,16 @@ async def ws_project_chat(websocket: WebSocket, project_id: str):
             history.append({"role": "user", "text": question})
             answer = ""
 
-            async for chunk in stream_project_chat(client, question, project["meetings"], history[:-1]):
-                answer += chunk
-                await websocket.send_json({"type": "chunk", "chunk": chunk})
+            with propagate_attributes(session_id=session_id, metadata={"project_id": project_id}):
+                with get_langfuse().start_as_current_observation(
+                    as_type="span",
+                    name="project-chat-turn",
+                    input={"question": question, "history_turns": len(history) - 1},
+                ) as root:
+                    async for chunk in stream_project_chat(client, question, project["meetings"], history[:-1]):
+                        answer += chunk
+                        await websocket.send_json({"type": "chunk", "chunk": chunk})
+                    root.update(output={"answer_chars": len(answer)})
 
             history.append({"role": "assistant", "text": answer})
             await websocket.send_json({"type": "done"})
@@ -200,6 +268,7 @@ async def upload_transcript(file: UploadFile = File(...)):
 @app.websocket("/ws/summarize")
 async def ws_summarize(websocket: WebSocket):
     await websocket.accept()
+    session_id = str(uuid.uuid4())
     try:
         data = await websocket.receive_json()
         transcript = data.get("transcript", SAMPLE_TRANSCRIPT)
@@ -207,35 +276,43 @@ async def ws_summarize(websocket: WebSocket):
 
         client = make_client()
 
-        if language.strip().lower() != "english":
-            await websocket.send_json({"type": "status", "message": f"Translating to {language}..."})
-            transcript = await translate_transcript(client, transcript, language)
+        with propagate_attributes(session_id=session_id):
+            with get_langfuse().start_as_current_observation(
+                as_type="span",
+                name="meeting-analysis",
+                input={"language": language, "transcript_chars": len(transcript)},
+            ) as root:
+                if language.strip().lower() != "english":
+                    await websocket.send_json({"type": "status", "message": f"Translating to {language}..."})
+                    transcript = await translate_transcript(client, transcript, language)
 
-        await websocket.send_json({"type": "status", "message": "Agents started"})
+                await websocket.send_json({"type": "status", "message": "Agents started"})
 
-        # Lock prevents concurrent writes to the WebSocket from two tasks
-        send_lock = asyncio.Lock()
+                # Lock prevents concurrent writes to the WebSocket from two tasks
+                send_lock = asyncio.Lock()
 
-        async def send(payload: dict) -> None:
-            async with send_lock:
-                await websocket.send_json(payload)
+                async def send(payload: dict) -> None:
+                    async with send_lock:
+                        await websocket.send_json(payload)
 
-        async def run_and_stream(stream_fn, agent_type: str, *args) -> dict:
-            accumulated = ""
-            async for chunk in stream_fn(client, *args):
-                accumulated += chunk
-                await send({"type": f"{agent_type}_chunk", "chunk": chunk})
-            result = parse_json(accumulated)
-            await send({"type": f"{agent_type}_done", "data": result})
-            return result
+                async def run_and_stream(stream_fn, agent_type: str, *args) -> dict:
+                    accumulated = ""
+                    async for chunk in stream_fn(client, *args):
+                        accumulated += chunk
+                        await send({"type": f"{agent_type}_chunk", "chunk": chunk})
+                    result = parse_json(accumulated)
+                    await send({"type": f"{agent_type}_done", "data": result})
+                    return result
 
-        summary_data, actions_data = await asyncio.gather(
-            run_and_stream(stream_meeting_summarizer, "summary", transcript),
-            run_and_stream(stream_action_item_agent, "actions", transcript),
-        )
+                summary_data, actions_data = await asyncio.gather(
+                    run_and_stream(stream_meeting_summarizer, "summary", transcript),
+                    run_and_stream(stream_action_item_agent, "actions", transcript),
+                )
 
-        await send({"type": "status", "message": "Drafting follow-up email and Jira tasks..."})
-        await run_and_stream(stream_followup_agent, "followup", summary_data, actions_data)
+                await send({"type": "status", "message": "Drafting follow-up email and Jira tasks..."})
+                followup_data = await run_and_stream(stream_followup_agent, "followup", summary_data, actions_data)
+
+                root.update(output={"action_count": len(actions_data.get("action_items", []))})
 
         await websocket.send_json({"type": "complete"})
 

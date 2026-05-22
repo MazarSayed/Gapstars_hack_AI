@@ -1,7 +1,7 @@
 from typing import AsyncGenerator
 from google import genai
 from google.genai import types
-from utils import DEFAULT_MODEL, load_prompt, stream_text_chunks
+from utils import DEFAULT_MODEL, get_langfuse, load_prompt, stream_text_chunks
 
 _SYSTEM_PROMPT = load_prompt("project_chat_prompt")
 
@@ -53,10 +53,27 @@ async def stream_project_chat(
     contents.append(types.Content(role="user", parts=[types.Part(text=user_turn)]))
 
     config = types.GenerateContentConfig(system_instruction=_SYSTEM_PROMPT)
-    stream = await client.aio.models.generate_content_stream(
+
+    lf = get_langfuse()
+    lf_input = [{"role": "system", "content": _SYSTEM_PROMPT}]
+    for msg in history:
+        role = "user" if msg["role"] == "user" else "assistant"
+        lf_input.append({"role": role, "content": msg["text"]})
+    lf_input.append({"role": "user", "content": user_turn})
+
+    accumulated = ""
+    with lf.start_as_current_observation(
+        as_type="generation",
+        name="project-chat",
         model=DEFAULT_MODEL,
-        contents=contents,
-        config=config,
-    )
-    async for chunk in stream_text_chunks(stream):
-        yield chunk
+        input=lf_input,
+    ) as obs:
+        stream = await client.aio.models.generate_content_stream(
+            model=DEFAULT_MODEL,
+            contents=contents,
+            config=config,
+        )
+        async for chunk in stream_text_chunks(stream):
+            accumulated += chunk
+            yield chunk
+        obs.update(output=accumulated)

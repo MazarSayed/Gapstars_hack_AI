@@ -59,3 +59,15 @@ class MeetingWorkflowResult(BaseModel):
     summary: MeetingSummary
     action_report: ActionItemReport
     followup: FollowupResult
+
+
+class ProjectSummary(BaseModel):
+    overview: str
+    strategic_goals: list[str] = Field(default_factory=list)
+    current_direction: str = ""
+    key_themes: list[str] = Field(default_factory=list)
+    major_decisions: list[str] = Field(default_factory=list)
+    risks_and_concerns: list[str] = Field(default_factory=list)
+    open_questions: list[str] = Field(default_factory=list)
+    progress_assessment: str = ""
+    meetings_analyzed: int = 0
