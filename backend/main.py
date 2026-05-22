@@ -1,14 +1,18 @@
 import asyncio
-import json
-import os
-from dotenv import load_dotenv
-from google import genai
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+import uuid
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from agents.meeting_summarizer import stream_meeting_summarizer
 from agents.action_item_agent import stream_action_item_agent
 from agents.followup_agent import stream_followup_agent
 from agents.translator_agent import translate_transcript
-from agents.chat_agent import stream_chat_agent
+from agents.project_chat_agent import stream_project_chat
+from utils import make_client, parse_json
+from utils.file_processor import extract_transcript
+
+# In-memory project store: { project_id: { name, meetings: [...] } }
+_projects: dict[str, dict] = {}
 
 
 SAMPLE_TRANSCRIPT = """
@@ -53,20 +57,143 @@ Sarah: I don't have that info yet — I'll check with finance and get back to ev
 # FastAPI app
 # ---------------------------------------------------------------------------
 
-load_dotenv()
 app = FastAPI(title="Meeting Workflow API")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-def _make_client() -> genai.Client:
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY is not set")
-    return genai.Client(api_key=api_key)
+
+# ---------------------------------------------------------------------------
+# Project endpoints
+# ---------------------------------------------------------------------------
+
+class CreateProjectRequest(BaseModel):
+    name: str
 
 
-def _parse_json(raw: str) -> dict:
-    cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-    return json.loads(cleaned)
+@app.post("/project")
+async def create_project(body: CreateProjectRequest):
+    pid = str(uuid.uuid4())[:8]
+    _projects[pid] = {"name": body.name, "meetings": []}
+    return {"project_id": pid, "name": body.name}
+
+
+@app.get("/project")
+async def list_projects():
+    return [
+        {"project_id": pid, "name": p["name"], "meeting_count": len(p["meetings"])}
+        for pid, p in _projects.items()
+    ]
+
+
+@app.post("/project/{project_id}/meeting")
+async def add_meeting_to_project(project_id: str, file: UploadFile = File(...)):
+    if project_id not in _projects:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    data = await file.read()
+    content_type = file.content_type or ""
+    client = make_client()
+
+    try:
+        transcript = await extract_transcript(client, file.filename or "", content_type, data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    send_lock = asyncio.Lock()
+
+    async def collect(stream_fn, *args) -> dict:
+        accumulated = ""
+        async for chunk in stream_fn(client, *args):
+            accumulated += chunk
+        return parse_json(accumulated)
+
+    summary_data, actions_data = await asyncio.gather(
+        collect(stream_meeting_summarizer, transcript),
+        collect(stream_action_item_agent, transcript),
+    )
+
+    meeting = {
+        "name": file.filename,
+        "transcript": transcript,
+        "summary": summary_data,
+        "actions": actions_data,
+    }
+    _projects[project_id]["meetings"].append(meeting)
+
+    return {
+        "meeting_name": file.filename,
+        "summary": summary_data,
+        "actions": actions_data,
+        "total_meetings": len(_projects[project_id]["meetings"]),
+    }
+
+
+@app.websocket("/ws/project/{project_id}/chat")
+async def ws_project_chat(websocket: WebSocket, project_id: str):
+    await websocket.accept()
+    try:
+        if project_id not in _projects:
+            await websocket.send_json({"type": "error", "message": "Project not found"})
+            await websocket.close()
+            return
+
+        project = _projects[project_id]
+        client = make_client()
+        history: list[dict] = []
+
+        await websocket.send_json({"type": "ready"})
+
+        while True:
+            data = await websocket.receive_json()
+            question = data.get("question", "").strip()
+            if not question:
+                continue
+
+            history.append({"role": "user", "text": question})
+            answer = ""
+
+            async for chunk in stream_project_chat(client, question, project["meetings"], history[:-1]):
+                answer += chunk
+                await websocket.send_json({"type": "chunk", "chunk": chunk})
+
+            history.append({"role": "assistant", "text": answer})
+            await websocket.send_json({"type": "done"})
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        try:
+            await websocket.send_json({"type": "error", "message": str(e)})
+        except Exception:
+            pass
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+
+@app.post("/upload/transcript")
+async def upload_transcript(file: UploadFile = File(...)):
+    """
+    Upload a DOCX, PDF, audio, or video file and receive the extracted transcript text.
+    The returned transcript can be passed directly to the /ws/summarize WebSocket.
+    """
+    data = await file.read()
+    content_type = file.content_type or ""
+    try:
+        client = make_client()
+        transcript = await extract_transcript(client, file.filename or "", content_type, data)
+        return {"transcript": transcript, "filename": file.filename}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.websocket("/ws/summarize")
@@ -77,7 +204,7 @@ async def ws_summarize(websocket: WebSocket):
         transcript = data.get("transcript", SAMPLE_TRANSCRIPT)
         language = data.get("language", "English")
 
-        client = _make_client()
+        client = make_client()
 
         if language.strip().lower() != "english":
             await websocket.send_json({"type": "status", "message": f"Translating to {language}..."})
@@ -97,7 +224,7 @@ async def ws_summarize(websocket: WebSocket):
             async for chunk in stream_fn(client, *args):
                 accumulated += chunk
                 await send({"type": f"{agent_type}_chunk", "chunk": chunk})
-            result = _parse_json(accumulated)
+            result = parse_json(accumulated)
             await send({"type": f"{agent_type}_done", "data": result})
             return result
 

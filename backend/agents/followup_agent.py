@@ -1,18 +1,9 @@
 import json
-from pathlib import Path
 from typing import AsyncGenerator
 from google import genai
-from google.genai import types
+from utils import DEFAULT_MODEL, load_prompt, make_json_config, stream_text_chunks
 
-MODEL = "gemini-3.1-flash-lite"
-
-_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "followup_prompt.md"
-FOLLOWUP_SYSTEM_PROMPT = _PROMPT_PATH.read_text()
-
-_CONFIG = types.GenerateContentConfig(
-    system_instruction=FOLLOWUP_SYSTEM_PROMPT,
-    response_mime_type="application/json",
-)
+_CONFIG = make_json_config(load_prompt("followup_prompt"))
 
 
 async def stream_followup_agent(
@@ -23,10 +14,9 @@ async def stream_followup_agent(
         f"Action Item Report:\n{json.dumps(action_report, indent=2)}"
     )
     stream = await client.aio.models.generate_content_stream(
-        model=MODEL,
+        model=DEFAULT_MODEL,
         contents=contents,
         config=_CONFIG,
     )
-    async for chunk in stream:
-        if chunk.text:
-            yield chunk.text
+    async for chunk in stream_text_chunks(stream):
+        yield chunk

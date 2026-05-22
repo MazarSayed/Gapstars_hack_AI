@@ -1,6 +1,182 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue';
 
+// ---------------------------------------------------------------------------
+// App-level mode toggle: 'single' | 'project'
+// ---------------------------------------------------------------------------
+const appMode = ref('single');
+
+// ---------------------------------------------------------------------------
+// Project Chat State
+// ---------------------------------------------------------------------------
+const projects = ref([]); // [{ project_id, name, meeting_count }]
+const activeProject = ref(null); // { project_id, name }
+const newProjectName = ref('');
+const isCreatingProject = ref(false);
+
+const projectMeetingFile = ref(null);
+const projectFileInputRef = ref(null);
+const isAddingMeeting = ref(false);
+const addMeetingStatus = ref('');
+
+const chatMessages = ref([]); // [{ role: 'user'|'assistant', text, streaming? }]
+const chatInput = ref('');
+const isChatStreaming = ref(false);
+const chatScrollRef = ref(null);
+let projectSocket = null;
+
+const getBackendBase = () => {
+  const host = window.location.host;
+  if (host.includes('localhost') || host.includes('127.0.0.1')) {
+    return 'http://localhost:8000';
+  }
+  return window.location.origin;
+};
+
+const getWsBase = () => {
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.host;
+  if (host.includes('localhost') || host.includes('127.0.0.1')) {
+    return `${proto}//localhost:8000`;
+  }
+  return `${proto}//${host}`;
+};
+
+const fetchProjects = async () => {
+  try {
+    const res = await fetch(`${getBackendBase()}/project`);
+    if (res.ok) projects.value = await res.json();
+  } catch (e) { /* backend not ready yet */ }
+};
+
+const createProject = async () => {
+  const name = newProjectName.value.trim();
+  if (!name) return;
+  isCreatingProject.value = true;
+  try {
+    const res = await fetch(`${getBackendBase()}/project`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    if (res.ok) {
+      const proj = await res.json();
+      projects.value.push({ project_id: proj.project_id, name: proj.name, meeting_count: 0 });
+      newProjectName.value = '';
+      selectProject({ project_id: proj.project_id, name: proj.name });
+    }
+  } finally {
+    isCreatingProject.value = false;
+  }
+};
+
+const selectProject = (proj) => {
+  activeProject.value = proj;
+  chatMessages.value = [];
+  addMeetingStatus.value = '';
+  connectProjectChat(proj.project_id);
+};
+
+const connectProjectChat = (projectId) => {
+  if (projectSocket) {
+    projectSocket.close();
+    projectSocket = null;
+  }
+  const ws = new WebSocket(`${getWsBase()}/ws/project/${projectId}/chat`);
+  projectSocket = ws;
+
+  ws.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    if (data.type === 'ready') return;
+    if (data.type === 'chunk') {
+      const last = chatMessages.value[chatMessages.value.length - 1];
+      if (last && last.role === 'assistant' && last.streaming) {
+        last.text += data.chunk;
+        scrollChat();
+      }
+    }
+    if (data.type === 'done') {
+      const last = chatMessages.value[chatMessages.value.length - 1];
+      if (last && last.streaming) last.streaming = false;
+      isChatStreaming.value = false;
+    }
+    if (data.type === 'error') {
+      isChatStreaming.value = false;
+      chatMessages.value.push({ role: 'assistant', text: `Error: ${data.message}`, streaming: false });
+    }
+  };
+
+  ws.onerror = () => {
+    isChatStreaming.value = false;
+  };
+};
+
+const sendChatMessage = () => {
+  const q = chatInput.value.trim();
+  if (!q || isChatStreaming.value || !projectSocket || projectSocket.readyState !== WebSocket.OPEN) return;
+
+  chatMessages.value.push({ role: 'user', text: q, streaming: false });
+  chatMessages.value.push({ role: 'assistant', text: '', streaming: true });
+  isChatStreaming.value = true;
+  chatInput.value = '';
+  scrollChat();
+
+  projectSocket.send(JSON.stringify({ question: q }));
+};
+
+const handleChatKeydown = (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChatMessage();
+  }
+};
+
+const scrollChat = () => {
+  nextTick(() => {
+    if (chatScrollRef.value) {
+      chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight;
+    }
+  });
+};
+
+const triggerProjectFileSelect = () => projectFileInputRef.value?.click();
+
+const handleProjectFileSelect = (e) => {
+  if (e.target.files.length > 0) projectMeetingFile.value = e.target.files[0];
+};
+
+const addMeetingToProject = async () => {
+  if (!activeProject.value || !projectMeetingFile.value) return;
+  isAddingMeeting.value = true;
+  addMeetingStatus.value = 'Processing meeting transcript...';
+
+  const formData = new FormData();
+  formData.append('file', projectMeetingFile.value);
+
+  try {
+    const res = await fetch(`${getBackendBase()}/project/${activeProject.value.project_id}/meeting`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (res.ok) {
+      const result = await res.json();
+      addMeetingStatus.value = `Added "${result.meeting_name}" — ${result.total_meetings} meeting(s) in project.`;
+      // Update meeting count in list
+      const proj = projects.value.find(p => p.project_id === activeProject.value.project_id);
+      if (proj) proj.meeting_count = result.total_meetings;
+      projectMeetingFile.value = null;
+      if (projectFileInputRef.value) projectFileInputRef.value.value = '';
+    } else {
+      const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
+      addMeetingStatus.value = `Error: ${err.detail}`;
+    }
+  } catch (e) {
+    addMeetingStatus.value = `Error: ${e.message}`;
+  } finally {
+    isAddingMeeting.value = false;
+  }
+};
+
 // --- State Variables ---
 const theme = ref('dark');
 const transcript = ref('');
@@ -8,6 +184,7 @@ const language = ref('English');
 const isDragover = ref(false);
 const selectedFile = ref(null);
 const fileInputRef = ref(null);
+const isUploading = ref(false);
 
 const viewState = ref('empty'); // 'empty' | 'loading' | 'dashboard'
 const loadingStep = ref('translate'); // 'translate' | 'agents' | 'followup'
@@ -224,6 +401,7 @@ onMounted(() => {
     document.body.classList.remove('light-theme');
     document.body.classList.add('dark-theme');
   }
+  fetchProjects();
 });
 
 // --- File Handling & Drag/Drop ---
@@ -254,17 +432,64 @@ const handleFileSelect = (e) => {
   }
 };
 
-const processFile = (file) => {
-  if (file.type !== 'text/plain' && !file.name.endsWith('.txt')) {
-    alert('Please upload a plain text file (.txt).');
+const ACCEPTED_EXTS = new Set([
+  'txt', 'docx', 'pdf',
+  'mp3', 'wav', 'ogg', 'm4a', 'aac',
+  'mp4', 'mov', 'avi', 'webm',
+]);
+
+const uploadTranscriptFile = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const host = window.location.host;
+  const urls = (host.includes('localhost') || host.includes('127.0.0.1'))
+    ? ['http://localhost:8000/upload/transcript', 'http://localhost:8001/upload/transcript']
+    : [`${window.location.origin}/upload/transcript`];
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { method: 'POST', body: formData });
+      if (res.ok) {
+        const json = await res.json();
+        return json.transcript;
+      }
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || 'Upload failed');
+    } catch (e) {
+      if (e instanceof TypeError) continue;
+      throw e;
+    }
+  }
+  throw new Error('Could not connect to backend. Is the server running?');
+};
+
+const processFile = async (file) => {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!ACCEPTED_EXTS.has(ext)) {
+    alert(`Unsupported file type ".${ext}".\nAccepted: TXT, DOCX, PDF, MP3, WAV, OGG, M4A, AAC, MP4, MOV, AVI, WEBM`);
     return;
   }
+
   selectedFile.value = file;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    transcript.value = e.target.result;
-  };
-  reader.readAsText(file);
+  transcript.value = '';
+
+  if (ext === 'txt') {
+    const reader = new FileReader();
+    reader.onload = (e) => { transcript.value = e.target.result; };
+    reader.readAsText(file);
+    return;
+  }
+
+  isUploading.value = true;
+  try {
+    transcript.value = await uploadTranscriptFile(file);
+  } catch (e) {
+    alert(`Upload failed: ${e.message}`);
+    selectedFile.value = null;
+  } finally {
+    isUploading.value = false;
+  }
 };
 
 const removeFile = () => {
@@ -500,6 +725,17 @@ const copyJiraTask = (task) => {
   const md = `h3. ${task.title}\n*Assignee*: ${task.assignee}\n*Priority*: ${task.priority}\n*Due Date*: ${task.due_date}\n\n*Description*\n${task.description}`;
   navigator.clipboard.writeText(md);
   triggerToast('Jira ticket Markdown copied!');
+};
+
+const renderMarkdown = (text) => {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^#{1,3} (.+)$/gm, '<strong>$1</strong>')
+    .replace(/^- (.+)$/gm, '• $1')
+    .replace(/\n/g, '<br>');
 };
 
 const copyAllJira = () => {
@@ -807,6 +1043,11 @@ const clearChat = () => {
         </div>
       </div>
 
+      <div class="mode-toggle-group">
+        <button class="mode-toggle-btn" :class="{ active: appMode === 'single' }" @click="appMode = 'single'">Single Meeting</button>
+        <button class="mode-toggle-btn" :class="{ active: appMode === 'project' }" @click="appMode = 'project'">Project Chat</button>
+      </div>
+
       <button class="theme-toggle" @click="toggleTheme" aria-label="Toggle Theme">
         <svg v-if="theme === 'light'" class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="5"></circle>
@@ -825,8 +1066,157 @@ const clearChat = () => {
       </button>
     </header>
 
-    <!-- Main Content Area -->
-    <main class="main-content">
+    <!-- Project Chat Mode -->
+    <main v-if="appMode === 'project'" class="main-content">
+      <!-- Left: Project Manager -->
+      <section class="panel input-panel">
+        <div class="panel-header">
+          <h2>Project Chat</h2>
+          <p class="subtitle">Group meetings into a project and ask questions across all of them.</p>
+        </div>
+
+        <div class="panel-body">
+          <!-- Create Project -->
+          <div class="input-field" style="margin-bottom: 12px;">
+            <label>New Project Name</label>
+            <input
+              type="text"
+              v-model="newProjectName"
+              placeholder="e.g. Q2 Product Planning"
+              class="text-input-field"
+              @keydown.enter="createProject"
+            />
+          </div>
+          <button class="primary-btn" :disabled="isCreatingProject || !newProjectName.trim()" @click="createProject" style="margin-bottom: 20px;">
+            <span class="btn-text">{{ isCreatingProject ? 'Creating...' : 'Create Project' }}</span>
+          </button>
+
+          <!-- Project List -->
+          <div v-if="projects.length" class="project-list">
+            <h4 class="section-label">Your Projects</h4>
+            <div
+              v-for="proj in projects"
+              :key="proj.project_id"
+              class="project-item"
+              :class="{ active: activeProject?.project_id === proj.project_id }"
+              @click="selectProject(proj)"
+            >
+              <span class="project-name">{{ proj.name }}</span>
+              <span class="project-meeting-count">{{ proj.meeting_count }} meeting{{ proj.meeting_count !== 1 ? 's' : '' }}</span>
+            </div>
+          </div>
+
+          <!-- Add Meeting -->
+          <div v-if="activeProject" class="add-meeting-section">
+            <h4 class="section-label">Add Meeting to "{{ activeProject.name }}"</h4>
+            <div class="file-dropzone" style="cursor: pointer;" @click="triggerProjectFileSelect">
+              <input
+                type="file"
+                ref="projectFileInputRef"
+                accept=".txt,.docx,.pdf,.mp3,.wav,.ogg,.m4a,.aac,.mp4,.mov,.avi,.webm"
+                class="hidden-input"
+                @change="handleProjectFileSelect"
+              />
+              <div class="dropzone-content">
+                <svg class="upload-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <p v-if="!projectMeetingFile"><strong>Click to upload</strong> a meeting file</p>
+                <p v-else class="file-name">{{ projectMeetingFile.name }}</p>
+              </div>
+            </div>
+            <button
+              class="primary-btn"
+              :disabled="isAddingMeeting || !projectMeetingFile"
+              @click="addMeetingToProject"
+              style="margin-top: 10px;"
+            >
+              <span class="btn-text">{{ isAddingMeeting ? 'Processing...' : 'Add to Project' }}</span>
+            </button>
+            <p v-if="addMeetingStatus" class="add-meeting-status" :class="{ error: addMeetingStatus.startsWith('Error') }">
+              {{ addMeetingStatus }}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: Chat Interface -->
+      <section class="panel results-panel">
+        <div v-if="!activeProject" class="empty-state">
+          <div class="empty-illustration">
+            <div class="empty-circle"></div>
+            <svg class="empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
+          <h3>Select or Create a Project</h3>
+          <p>Create a project on the left, add meeting recordings or transcripts, then ask questions that span all meetings.</p>
+        </div>
+
+        <div v-else class="project-chat-container">
+          <div class="project-chat-header">
+            <span class="project-chat-title">{{ activeProject.name }}</span>
+            <span class="project-meeting-badge">
+              {{ projects.find(p => p.project_id === activeProject.project_id)?.meeting_count || 0 }} meetings
+            </span>
+          </div>
+
+          <div v-if="!projects.find(p => p.project_id === activeProject.project_id)?.meeting_count" class="chat-empty-hint">
+            Add at least one meeting on the left to start chatting.
+          </div>
+
+          <!-- Message History -->
+          <div class="chat-messages" ref="chatScrollRef">
+            <div v-if="!chatMessages.length" class="chat-starter-hints">
+              <p class="chat-hint-title">Try asking:</p>
+              <div class="chat-hint-chips">
+                <span class="hint-chip" @click="chatInput = 'What decisions have been made so far?'; sendChatMessage()">What decisions have been made?</span>
+                <span class="hint-chip" @click="chatInput = 'Which action items are still open?'; sendChatMessage()">Which action items are open?</span>
+                <span class="hint-chip" @click="chatInput = 'Catch me up on the project so far'; sendChatMessage()">Catch me up on the project</span>
+                <span class="hint-chip" @click="chatInput = 'What risks or blockers were mentioned?'; sendChatMessage()">What risks were mentioned?</span>
+              </div>
+            </div>
+
+            <div
+              v-for="(msg, idx) in chatMessages"
+              :key="idx"
+              class="chat-message"
+              :class="msg.role"
+            >
+              <div class="message-bubble" :class="{ streaming: msg.streaming }">
+                <span v-if="msg.role === 'user'" class="msg-role-label">You</span>
+                <span v-else class="msg-role-label agent-label">Project Agent</span>
+                <div class="message-text" v-html="renderMarkdown(msg.text)"></div>
+                <span v-if="msg.streaming" class="typing-cursor">▋</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chat Input -->
+          <div class="chat-input-row">
+            <textarea
+              v-model="chatInput"
+              class="chat-textarea"
+              placeholder="Ask anything about your project meetings..."
+              rows="2"
+              :disabled="isChatStreaming"
+              @keydown="handleChatKeydown"
+            ></textarea>
+            <button class="chat-send-btn" :disabled="isChatStreaming || !chatInput.trim()" @click="sendChatMessage">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Single Meeting Mode -->
+    <main v-else class="main-content">
       <!-- Left Side: Input Panel -->
       <section class="panel input-panel">
         <div class="panel-header">
@@ -836,19 +1226,19 @@ const clearChat = () => {
 
         <div class="panel-body">
           <!-- Drop Zone -->
-          <div 
-            class="file-dropzone" 
-            :class="{ dragover: isDragover }"
-            @click="triggerFileSelect"
-            @dragover="handleDragOver"
+          <div
+            class="file-dropzone"
+            :class="{ dragover: isDragover, uploading: isUploading }"
+            @click="!isUploading && triggerFileSelect()"
+            @dragover="!isUploading && handleDragOver($event)"
             @dragleave="handleDragLeave"
-            @drop="handleDrop"
+            @drop="!isUploading && handleDrop($event)"
           >
-            <input 
-              type="file" 
-              ref="fileInputRef" 
-              accept=".txt" 
-              class="hidden-input" 
+            <input
+              type="file"
+              ref="fileInputRef"
+              accept=".txt,.docx,.pdf,.mp3,.wav,.ogg,.m4a,.aac,.mp4,.mov,.avi,.webm"
+              class="hidden-input"
               @change="handleFileSelect"
             >
             <div v-if="!selectedFile" class="dropzone-content">
@@ -857,13 +1247,14 @@ const clearChat = () => {
                 <polyline points="17 8 12 3 7 8"></polyline>
                 <line x1="12" y1="3" x2="12" y2="15"></line>
               </svg>
-              <p><strong>Drag & drop transcript file</strong> or <span class="highlight-link">browse</span></p>
-              <p class="file-hint">Plain text (.txt) up to 10MB</p>
+              <p><strong>Drag & drop a file</strong> or <span class="highlight-link">browse</span></p>
+              <p class="file-hint">TXT, DOCX, PDF, MP3, WAV, MP4 and more — up to 100MB</p>
             </div>
-            
+
             <div v-else class="selected-file-info">
-              <span class="file-name">{{ selectedFile.name }}</span>
-              <button type="button" class="remove-file-btn" @click.stop="removeFile">
+              <span v-if="isUploading" class="upload-spinner-inline"></span>
+              <span class="file-name">{{ isUploading ? 'Extracting transcript...' : selectedFile.name }}</span>
+              <button v-if="!isUploading" type="button" class="remove-file-btn" @click.stop="removeFile">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
                   <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -1601,556 +1992,325 @@ const clearChat = () => {
   max-width: 100% !important;
 }
 
-/* Jira & Email Skeletons and Empty States */
-.jira-board-skeleton {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 15px;
-  width: 100%;
+.file-dropzone.uploading {
+  cursor: default;
+  opacity: 0.75;
+  pointer-events: none;
 }
 
-.jira-column-skeleton {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
-  padding: 12px;
-  height: 250px;
+.upload-spinner-inline {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(99, 102, 241, 0.2);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin-tiny 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ---- Mode Toggle ---- */
+.mode-toggle-group {
   display: flex;
-  flex-direction: column;
-}
-
-.jira-col-header-skeleton {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.jira-col-header-skeleton h4 {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin: 0;
-}
-
-.skeleton-badge {
-  width: 18px;
-  height: 18px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
-}
-
-.jira-col-cards-skeleton {
-  flex: 1;
-}
-
-.jira-card-skeleton {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: var(--border-radius-sm);
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.skeleton-line {
-  height: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
-  width: 100%;
-}
-
-.skeleton-line.short { width: 40%; }
-.skeleton-line.medium { width: 70%; }
-
-.jira-empty-state, .email-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 50px 20px;
-  color: var(--text-muted);
-  border: 1px dashed var(--border-color);
-  border-radius: var(--border-radius-md);
-  margin-top: 15px;
-}
-
-.empty-icon-wrap {
-  color: var(--text-muted);
-  opacity: 0.5;
-  margin-bottom: 12px;
-}
-
-.jira-empty-state h3, .email-empty-state h3 {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-main);
-  margin: 0 0 6px 0;
-}
-
-.jira-empty-state p, .email-empty-state p {
-  font-size: 13px;
-  max-width: 320px;
-  margin: 0;
-  line-height: 1.4;
-}
-
-.email-skeleton-textarea {
-  border: 1px solid var(--border-color);
-  background: rgba(255, 255, 255, 0.01);
-  border-radius: var(--border-radius-sm);
-  padding: 16px;
-  min-height: 250px;
-  font-family: inherit;
-  font-size: 13.5px;
-  color: var(--text-muted);
-  font-style: italic;
-  display: flex;
-  align-items: flex-start;
   gap: 4px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 3px;
 }
 
-/* Workflow Error Panel */
-.workflow-error-panel {
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: var(--border-radius-md);
-  padding: 16px;
-  margin-bottom: 24px;
-  text-align: left;
+.mode-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.error-panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.mode-toggle-btn.active {
+  background: var(--primary);
+  color: white;
+}
+
+/* ---- Project List ---- */
+.project-list {
+  margin-bottom: 20px;
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
   margin-bottom: 8px;
 }
 
-.error-title-container {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  color: #f87171;
-  font-size: 14px;
-}
-
-.error-icon {
-  color: #f87171;
-}
-
-.clear-error-btn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 4px;
-}
-
-.clear-error-btn:hover {
-  color: var(--text-main);
-}
-
-.error-message {
-  font-size: 13px;
-  color: var(--text-main);
-  line-height: 1.5;
-  margin: 0 0 14px 0;
-  white-space: pre-line;
-}
-
-.error-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.retry-btn-accent {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #ef4444;
-  color: white;
-  border: none;
-  border-radius: var(--border-radius-sm);
-  padding: 8px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s, transform 0.2s;
-}
-
-.retry-btn-accent:hover {
-  background: #dc2626;
-  transform: translateY(-1px);
-}
-
-.retry-btn-accent:active {
-  transform: translateY(0);
-}
-
-/* Chatbot Styles */
-.chatbot-widget {
-  position: fixed;
-  bottom: 25px;
-  right: 25px;
-  z-index: 999;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 15px;
-  font-family: var(--font-sans);
-}
-
-.chat-toggle-btn {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, hsl(244, 90%, 65%), hsl(270, 90%, 65%));
-  border: none;
-  cursor: pointer;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
-  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s;
-  position: relative;
-}
-
-.chat-toggle-btn:hover {
-  transform: scale(1.08);
-  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.55);
-}
-
-.chat-badge-pulse {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 10px;
-  height: 10px;
-  background-color: var(--success);
-  border-radius: 50%;
-  border: 2px solid var(--bg-app);
-}
-
-.chat-window-panel {
-  width: 380px;
-  height: 520px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-md);
-  backdrop-filter: blur(20px);
-  box-shadow: var(--shadow-main);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  animation: chatSlideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.1) forwards;
-}
-
-@keyframes chatSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.chat-window-header {
-  background: rgba(0, 0, 0, 0.15);
-  border-bottom: 1px solid var(--border-color);
-  padding: 14px 18px;
+.project-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 10px 14px;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: rgba(255,255,255,0.02);
 }
 
-.chat-window-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.project-item:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.06);
 }
 
-.chat-window-title h4 {
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 700;
-  margin: 0;
+.project-item.active {
+  border-color: var(--primary);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.project-name {
+  font-size: 13.5px;
+  font-weight: 500;
   color: var(--text-main);
 }
 
-.active-dot {
-  width: 8px;
-  height: 8px;
-  background-color: var(--success);
-  border-radius: 50%;
-  box-shadow: 0 0 8px var(--success);
-  animation: chatPulse 1.8s infinite;
-}
-
-@keyframes chatPulse {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
-}
-
-.chat-clear-btn {
-  background: none;
-  border: none;
+.project-meeting-count {
+  font-size: 11.5px;
   color: var(--text-muted);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-  border-radius: 4px;
-  transition: var(--transition-smooth);
+  background: rgba(255,255,255,0.07);
+  padding: 2px 8px;
+  border-radius: 10px;
 }
 
-.chat-clear-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--danger);
+/* ---- Add Meeting Section ---- */
+.add-meeting-section {
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+  margin-top: 4px;
 }
 
-.chat-suggestions {
-  padding: 10px 14px;
-  background: rgba(0, 0, 0, 0.1);
-  border-bottom: 1px solid var(--border-color);
+.add-meeting-status {
+  font-size: 12.5px;
+  color: var(--success, #10b981);
+  margin-top: 8px;
+}
+
+.add-meeting-status.error {
+  color: #f87171;
+}
+
+/* ---- Text input field ---- */
+.text-input-field {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 9px 12px;
+  font-size: 13.5px;
+  color: var(--text-main);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.text-input-field:focus {
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+/* ---- Project Chat Container ---- */
+.project-chat-container {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  height: 100%;
+  min-height: 0;
 }
 
-.suggestions-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  font-weight: 600;
-  letter-spacing: 0.5px;
-}
-
-.suggestions-list {
+.project-chat-header {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  max-height: 80px;
-  overflow-y: auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0 14px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 12px;
+  flex-shrink: 0;
 }
 
-.suggestion-chip {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+.project-chat-title {
+  font-size: 15px;
+  font-weight: 600;
   color: var(--text-main);
+}
+
+.project-meeting-badge {
   font-size: 11px;
-  padding: 5px 10px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  padding: 3px 10px;
   border-radius: 12px;
-  cursor: pointer;
-  text-align: left;
-  transition: var(--transition-smooth);
-  line-height: 1.25;
+  border: 1px solid rgba(99, 102, 241, 0.2);
 }
 
-.suggestion-chip:hover {
-  border-color: var(--primary);
-  background: var(--primary-glow);
+.chat-empty-hint {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 20px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--border-radius-md);
+  margin-bottom: 16px;
 }
 
-.chat-messages-container {
+/* ---- Messages ---- */
+.chat-messages {
   flex: 1;
-  padding: 16px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  background: rgba(0, 0, 0, 0.05);
+  padding-right: 4px;
+  min-height: 0;
 }
 
-.chat-bubble-wrap {
+.chat-starter-hints {
+  padding: 20px 0;
+  text-align: center;
+}
+
+.chat-hint-title {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.chat-hint-chips {
   display: flex;
-  flex-direction: column;
-  width: 100%;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
 }
 
-.chat-bubble-wrap.user {
-  align-items: flex-end;
+.hint-chip {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.chat-bubble-wrap.model {
-  align-items: flex-start;
+.hint-chip:hover {
+  background: rgba(99, 102, 241, 0.2);
 }
 
-.chat-bubble {
+.chat-message {
+  display: flex;
+}
+
+.chat-message.user {
+  justify-content: flex-end;
+}
+
+.chat-message.assistant {
+  justify-content: flex-start;
+}
+
+.message-bubble {
   max-width: 85%;
   padding: 10px 14px;
-  font-size: 13px;
-  line-height: 1.45;
+  border-radius: 12px;
+  font-size: 13.5px;
+  line-height: 1.6;
   position: relative;
 }
 
-.chat-bubble-wrap.user .chat-bubble {
-  background: linear-gradient(135deg, hsl(244, 80%, 60%), hsl(270, 80%, 60%));
+.chat-message.user .message-bubble {
+  background: var(--primary);
   color: white;
-  border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 var(--border-radius-sm);
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+  border-bottom-right-radius: 4px;
 }
 
-.chat-bubble-wrap.model .chat-bubble {
-  background: var(--bg-card);
+.chat-message.assistant .message-bubble {
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-color);
   color: var(--text-main);
-  border-radius: var(--border-radius-sm) var(--border-radius-sm) var(--border-radius-sm) 0;
+  border-bottom-left-radius: 4px;
 }
 
-/* Markdown styling inside bubbles */
-.chat-bubble-content p {
-  margin: 0 0 8px 0;
+.message-bubble.streaming {
+  border-color: rgba(99, 102, 241, 0.3);
 }
 
-.chat-bubble-content p:last-child {
-  margin-bottom: 0;
-}
-
-.chat-bubble-content code {
-  font-family: 'Courier New', Courier, monospace;
-  background: rgba(255, 255, 255, 0.08);
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-size: 11.5px;
-  color: #f472b6;
-}
-
-.light-theme .chat-bubble-content code {
-  color: #db2777;
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.chat-bubble-content ul.chat-list, .chat-bubble-content ol.chat-list {
-  margin: 0 0 8px 16px;
-  padding-left: 0;
-}
-
-.chat-bubble-content li {
-  margin-bottom: 4px;
-}
-
-.chat-bubble-content pre.code-block {
-  background: #0f172a;
-  border-radius: 6px;
-  margin: 8px 0;
-  padding: 8px 12px;
-  overflow-x: auto;
-  max-width: 100%;
-}
-
-.code-header {
-  font-size: 10px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  padding-bottom: 4px;
-  margin-bottom: 6px;
-}
-
-.chat-timestamp {
-  font-size: 9px;
-  color: rgba(255, 255, 255, 0.6);
-  margin-top: 4px;
+.msg-role-label {
   display: block;
-  text-align: right;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  opacity: 0.65;
 }
 
-.chat-bubble-wrap.model .chat-timestamp {
-  color: var(--text-muted);
+.agent-label {
+  color: #a5b4fc;
+  opacity: 1;
 }
 
-.chat-input-form {
-  padding: 12px;
-  border-top: 1px solid var(--border-color);
-  background: rgba(0, 0, 0, 0.15);
+.message-text {
+  word-break: break-word;
+}
+
+/* ---- Chat Input ---- */
+.chat-input-row {
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: flex-end;
+  margin-top: 12px;
+  flex-shrink: 0;
 }
 
-.chat-input-form input {
+.chat-textarea {
   flex: 1;
-  background: var(--bg-input);
+  background: rgba(255,255,255,0.05);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-sm);
+  padding: 10px 14px;
+  font-size: 13.5px;
   color: var(--text-main);
-  padding: 9px 12px;
-  font-size: 13px;
   outline: none;
-  transition: var(--transition-smooth);
+  resize: none;
+  font-family: inherit;
+  line-height: 1.5;
+  transition: border-color 0.2s;
 }
 
-.chat-input-form input:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px var(--primary-glow);
+.chat-textarea:focus {
+  border-color: rgba(99, 102, 241, 0.5);
 }
 
 .chat-send-btn {
   background: var(--primary);
-  color: white;
   border: none;
-  border-radius: var(--border-radius-sm);
-  width: 34px;
-  height: 34px;
+  color: white;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: var(--transition-bounce);
-}
-
-.chat-send-btn:hover:not(:disabled) {
-  transform: scale(1.05);
-  background: hsl(var(--primary-hue), 90%, 70%);
+  flex-shrink: 0;
+  transition: opacity 0.2s;
 }
 
 .chat-send-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.chat-loader-dots {
-  display: inline-flex;
-  gap: 4px;
-  padding: 6px 0;
-}
-
-.chat-loader-dots span {
-  width: 6px;
-  height: 6px;
-  background-color: var(--text-muted);
-  border-radius: 50%;
-  animation: chatDotBlink 1.4s infinite both;
-}
-
-.chat-loader-dots span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.chat-loader-dots span:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes chatDotBlink {
-  0%, 100% { opacity: 0.2; }
-  50% { opacity: 1; }
-}
-
-@media (max-width: 480px) {
-  .chat-window-panel {
-    width: calc(100vw - 30px);
-    height: calc(100vh - 120px);
-    max-height: 500px;
-  }
+  opacity: 0.4;
+  cursor: default;
 }
 </style>

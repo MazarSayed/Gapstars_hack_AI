@@ -1,11 +1,8 @@
-from pathlib import Path
 from google import genai
 from google.genai import types
+from utils import DEFAULT_MODEL, load_prompt
 
-MODEL = "gemini-3.1-flash-lite"
-
-_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "translator_prompt.md"
-TRANSLATOR_SYSTEM_PROMPT = _PROMPT_PATH.read_text()
+_SYSTEM_PROMPT = load_prompt("translator_prompt")
 
 
 async def translate_transcript(
@@ -18,10 +15,8 @@ async def translate_transcript(
         return text
 
     response = await client.aio.models.generate_content(
-        model=MODEL,
+        model=DEFAULT_MODEL,
         contents=f"Translate the following text into {target_language}:\n\n{text}",
-        config=types.GenerateContentConfig(
-            system_instruction=TRANSLATOR_SYSTEM_PROMPT,
-        ),
+        config=types.GenerateContentConfig(system_instruction=_SYSTEM_PROMPT),
     )
     return response.text.strip()
