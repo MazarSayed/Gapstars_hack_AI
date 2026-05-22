@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 from pathlib import Path
@@ -11,7 +12,7 @@ from langfuse import propagate_attributes  # re-exported for other modules
 
 load_dotenv()
 
-DEFAULT_MODEL = "gemini-3.1-flash-lite"
+DEFAULT_MODEL = "gemini-2.5-flash"
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
@@ -75,22 +76,38 @@ async def traced_stream_chunks(
     config: types.GenerateContentConfig,
     name: str,
 ) -> AsyncGenerator[str, None]:
-    """Stream Gemini output while recording a Langfuse generation observation."""
+    """Stream Gemini output while recording a Langfuse generation observation with retries on transient errors."""
     lf = get_langfuse()
-    accumulated = ""
-    with lf.start_as_current_observation(
-        as_type="generation",
-        name=name,
-        model=model,
-        input=_build_lf_input(contents, config),
-    ) as obs:
-        stream = await client.aio.models.generate_content_stream(
-            model=model, contents=contents, config=config,
-        )
-        async for chunk in stream_text_chunks(stream):
-            accumulated += chunk
-            yield chunk
-        obs.update(output=accumulated)
+    max_retries = 3
+    initial_delay = 1.0
+    
+    for attempt in range(max_retries + 1):
+        started_yielding = False
+        accumulated = ""
+        try:
+            with lf.start_as_current_observation(
+                as_type="generation",
+                name=name,
+                model=model,
+                input=_build_lf_input(contents, config),
+            ) as obs:
+                stream = await client.aio.models.generate_content_stream(
+                    model=model, contents=contents, config=config,
+                )
+                async for chunk in stream_text_chunks(stream):
+                    started_yielding = True
+                    accumulated += chunk
+                    yield chunk
+                obs.update(output=accumulated)
+                return
+        except Exception as e:
+            is_transient = "503" in str(e) or "UNAVAILABLE" in str(e) or "RESOURCE_EXHAUSTED" in str(e) or "limit" in str(e).lower()
+            if attempt < max_retries and is_transient and not started_yielding:
+                delay = initial_delay * (2 ** attempt)
+                print(f"[RETRY] Streaming attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
+                await asyncio.sleep(delay)
+            else:
+                raise e
 
 
 async def traced_generate(
@@ -101,17 +118,30 @@ async def traced_generate(
     config: types.GenerateContentConfig,
     name: str,
 ) -> str:
-    """Call Gemini non-streaming while recording a Langfuse generation observation."""
+    """Call Gemini non-streaming while recording a Langfuse generation observation with retries on transient errors."""
     lf = get_langfuse()
-    with lf.start_as_current_observation(
-        as_type="generation",
-        name=name,
-        model=model,
-        input=_build_lf_input(contents, config),
-    ) as obs:
-        response = await client.aio.models.generate_content(
-            model=model, contents=contents, config=config,
-        )
-        text = response.text.strip()
-        obs.update(output=text)
-        return text
+    max_retries = 3
+    initial_delay = 1.0
+    
+    for attempt in range(max_retries + 1):
+        try:
+            with lf.start_as_current_observation(
+                as_type="generation",
+                name=name,
+                model=model,
+                input=_build_lf_input(contents, config),
+            ) as obs:
+                response = await client.aio.models.generate_content(
+                    model=model, contents=contents, config=config,
+                )
+                text = response.text.strip()
+                obs.update(output=text)
+                return text
+        except Exception as e:
+            is_transient = "503" in str(e) or "UNAVAILABLE" in str(e) or "RESOURCE_EXHAUSTED" in str(e) or "limit" in str(e).lower()
+            if attempt < max_retries and is_transient:
+                delay = initial_delay * (2 ** attempt)
+                print(f"[RETRY] Non-streaming attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
+                await asyncio.sleep(delay)
+            else:
+                raise e
