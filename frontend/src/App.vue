@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 
 // --- State Variables ---
 const theme = ref('dark');
@@ -18,6 +18,13 @@ const isAnalyzing = ref(false);
 const agentSummarizerActive = ref(false);
 const agentActionActive = ref(false);
 const agentFollowupActive = ref(false);
+
+// Live Stream Feeds
+const summaryStream = ref('');
+const actionsStream = ref('');
+const statusMessage = ref('');
+const summaryConsoleRef = ref(null);
+const actionsConsoleRef = ref(null);
 
 // Toast alerts
 const toastMessage = ref('');
@@ -138,7 +145,7 @@ const triggerToast = (msg) => {
   }, 2500);
 };
 
-// --- Workflow Execution ---
+// --- Workflow Execution (WebSockets) ---
 const runWorkflow = async () => {
   const text = transcript.value.trim();
   if (!text) {
@@ -150,82 +157,125 @@ const runWorkflow = async () => {
   viewState.value = 'loading';
   isAnalyzing.value = true;
   loadingStep.value = 'translate';
+  statusMessage.value = 'Connecting to workflow agents...';
+
+  // Clear live stream buffers
+  summaryStream.value = '';
+  actionsStream.value = '';
   
   agentSummarizerActive.value = false;
   agentActionActive.value = false;
   agentFollowupActive.value = false;
 
-  // Fake Loading steps interval
-  let progress = 1;
-  const progressInterval = setInterval(() => {
-    progress++;
-    if (progress === 3) {
-      loadingStep.value = 'agents';
-      agentSummarizerActive.value = true;
-      agentActionActive.value = true;
-    } else if (progress === 7) {
-      loadingStep.value = 'followup';
-      agentFollowupActive.value = true;
-    }
-  }, 1000);
+  // Determine WebSocket endpoint
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.host;
+  const wsHost = host.includes('localhost:5173') || host.includes('127.0.0.1:5173')
+    ? 'localhost:8000'
+    : host;
+  const wsUrl = `${wsProtocol}//${wsHost}/ws/summarize`;
 
-  // Endpoint configuration
-  const host = window.location.origin;
-  const apiEndpoint = host.includes('localhost') || host.includes('127.0.0.1')
-    ? '/api/analyze'
-    : 'http://localhost:8000/api/analyze';
-
+  let socket;
   try {
-    const response = await fetch(apiEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        transcript: text,
-        language: language.value
-      })
-    });
-
-    clearInterval(progressInterval);
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Server returned ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    // Map outputs
-    summaryResult.value = data.summary;
-    actionReportResult.value = data.action_report;
-    
-    // Complete remaining states
-    loadingStep.value = 'done';
-    agentSummarizerActive.value = true;
-    agentActionActive.value = true;
-    agentFollowupActive.value = true;
-
-    // Synthesis fallback for follow-up details
-    if (data.followup) {
-      followupResult.value = data.followup;
-    } else {
-      followupResult.value = generateClientSideFollowup(data.summary, data.action_report);
-    }
-
-    // Switch view to dashboard
-    setTimeout(() => {
-      viewState.value = 'dashboard';
-      isAnalyzing.value = false;
-    }, 500);
-
-  } catch (error) {
-    clearInterval(progressInterval);
-    console.error(error);
-    alert(`Analysis failed: ${error.message}\n\nPlease check that your backend FastAPI server is running.`);
-    
-    // Reset back to empty/input screen
+    socket = new WebSocket(wsUrl);
+  } catch (err) {
+    console.error(err);
+    alert('Failed to establish WebSocket connection.');
     viewState.value = 'empty';
     isAnalyzing.value = false;
+    return;
   }
+
+  socket.onopen = () => {
+    statusMessage.value = 'Connected. Triggering agents...';
+    const payload = {
+      transcript: text,
+      language: language.value
+    };
+    socket.send(JSON.stringify(payload));
+  };
+
+  socket.onmessage = (eventMsg) => {
+    try {
+      const data = JSON.parse(eventMsg.data);
+
+      if (data.type === 'status') {
+        statusMessage.value = data.message;
+        if (data.message.toLowerCase().includes('started')) {
+          loadingStep.value = 'agents';
+          agentSummarizerActive.value = true;
+          agentActionActive.value = true;
+        } else if (data.message.toLowerCase().includes('translating')) {
+          loadingStep.value = 'translate';
+        }
+      } 
+      
+      else if (data.type === 'summary_chunk') {
+        summaryStream.value += data.chunk;
+        agentSummarizerActive.value = true;
+        scrollConsole(summaryConsoleRef);
+      } 
+      
+      else if (data.type === 'actions_chunk') {
+        actionsStream.value += data.chunk;
+        agentActionActive.value = true;
+        scrollConsole(actionsConsoleRef);
+      } 
+      
+      else if (data.type === 'summary_done') {
+        summaryResult.value = data.data;
+      } 
+      
+      else if (data.type === 'actions_done') {
+        actionReportResult.value = data.data;
+      } 
+      
+      else if (data.type === 'complete') {
+        statusMessage.value = 'Analysis complete. Drafting reports...';
+        loadingStep.value = 'followup';
+        agentFollowupActive.value = true;
+
+        if (summaryResult.value && actionReportResult.value) {
+          followupResult.value = generateClientSideFollowup(summaryResult.value, actionReportResult.value);
+        }
+
+        setTimeout(() => {
+          loadingStep.value = 'done';
+          viewState.value = 'dashboard';
+          isAnalyzing.value = false;
+          socket.close();
+        }, 800);
+      } 
+      
+      else if (data.type === 'error') {
+        alert(`Agent Error: ${data.message}`);
+        viewState.value = 'empty';
+        isAnalyzing.value = false;
+        socket.close();
+      }
+    } catch (err) {
+      console.error('Failed to parse WebSocket event:', err);
+    }
+  };
+
+  socket.onerror = (err) => {
+    console.error('WebSocket error event:', err);
+    alert('Workflow connection was interrupted.');
+    viewState.value = 'empty';
+    isAnalyzing.value = false;
+  };
+
+  socket.onclose = () => {
+    console.log('Workflow socket closed.');
+  };
+};
+
+const scrollConsole = (refVar) => {
+  nextTick(() => {
+    if (refVar.value) {
+      refVar.value.scrollTop = refVar.value.scrollHeight;
+    }
+  });
 };
 
 // --- Copy Utilities ---
@@ -527,6 +577,25 @@ const generateClientSideFollowup = (summary, report) => {
               Generating email draft & Jira tasks...
             </div>
           </div>
+
+          <div class="loading-status-message" v-if="statusMessage">
+            {{ statusMessage }}
+          </div>
+
+          <div class="stream-consoles-container">
+            <div class="stream-console">
+              <h5>📝 Summarizer Agent Feed</h5>
+              <div class="console-content" ref="summaryConsoleRef">
+                {{ summaryStream || 'Awaiting stream...' }}
+              </div>
+            </div>
+            <div class="stream-console">
+              <h5>⚡ Action Item Agent Feed</h5>
+              <div class="console-content" ref="actionsConsoleRef">
+                {{ actionsStream || 'Awaiting stream...' }}
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Output Dashboard -->
@@ -802,6 +871,59 @@ const generateClientSideFollowup = (summary, report) => {
   </div>
 </template>
 
-<style>
-/* Base overrides if necessary */
+<style scoped>
+.loading-status-message {
+  margin-top: 15px;
+  font-size: 13.5px;
+  color: var(--primary);
+  font-weight: 500;
+  text-align: center;
+}
+
+.stream-consoles-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  width: 100%;
+  max-width: 650px;
+  margin-top: 25px;
+}
+
+@media (max-width: 600px) {
+  .stream-consoles-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stream-console {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 180px;
+  overflow: hidden;
+}
+
+.stream-console h5 {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.console-content {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 11px;
+  color: var(--text-main);
+  line-height: 1.4;
+  overflow-y: auto;
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-all;
+  text-align: left;
+}
 </style>
