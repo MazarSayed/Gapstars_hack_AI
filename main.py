@@ -9,6 +9,8 @@ Epic 8 — two agents running in parallel:
 import asyncio
 import json
 import os
+import argparse
+from dotenv import load_dotenv
 from google import genai
 
 from agents.meeting_summarizer import run_meeting_summarizer
@@ -116,14 +118,62 @@ async def run_workflow(transcript: str, language: str = "English") -> MeetingWor
     return MeetingWorkflowResult(summary=summary, action_report=action_report)
 
 
-async def main() -> None:
-    result = await run_workflow(SAMPLE_TRANSCRIPT, language="English")
-    print_results(result)
+def main() -> None:
+    """CLI Entry Point."""
+    parser = argparse.ArgumentParser(description="Multi-Agent Meeting Assistant CLI")
+    parser.add_argument(
+        "--file", "-f",
+        type=str,
+        help="Path to a text file containing the meeting transcript. If not provided, the default sample transcript is used."
+    )
+    parser.add_argument(
+        "--language", "-l",
+        type=str,
+        default="English",
+        help="Target language for translation (default: English)."
+    )
+    parser.add_argument(
+        "--output", "-o",
+        type=str,
+        default="output.json",
+        help="Path to save the JSON output (default: output.json)."
+    )
+    args = parser.parse_args()
 
-    with open("output.json", "w") as f:
-        json.dump(result.model_dump(), f, indent=2)
-    print("\nFull output saved to output.json")
+    # Load environment variables from .env file
+    load_dotenv()
+
+    # Ensure GEMINI_API_KEY is present
+    if not os.environ.get("GEMINI_API_KEY"):
+        print("Error: GEMINI_API_KEY environment variable is not set.")
+        print("Please set it in your system environment or in a .env file (see .env.example).")
+        return
+
+    # Determine the transcript content to use
+    if args.file:
+        try:
+            with open(args.file, "r", encoding="utf-8") as f:
+                transcript = f.read()
+            print(f"Loaded transcript from {args.file} ({len(transcript)} chars)")
+        except Exception as e:
+            print(f"Error reading transcript file {args.file}: {e}")
+            return
+    else:
+        print("Using the default sample transcript (Q2 Product Planning)")
+        transcript = SAMPLE_TRANSCRIPT
+
+    async def run() -> None:
+        result = await run_workflow(transcript, language=args.language)
+        print_results(result)
+        try:
+            with open(args.output, "w", encoding="utf-8") as f:
+                json.dump(result.model_dump(), f, indent=2)
+            print(f"\nFull output saved to {args.output}")
+        except Exception as e:
+            print(f"Error saving output to {args.output}: {e}")
+
+    asyncio.run(run())
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
