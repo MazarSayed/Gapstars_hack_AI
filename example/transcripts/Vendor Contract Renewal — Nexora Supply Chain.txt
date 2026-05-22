@@ -1,0 +1,126 @@
+Vendor Contract Renewal — Nexora Supply Chain
+
+Fri, 20 Jun 2025  ·  11:00 AM  ·  Conference Room A
+
+GV
+Greg Vance · Procurement Lead
+IC
+Irene Castellano · Legal Counsel
+DN
+David Nguyen · Operations Dir.
+FW
+Fatima Warsame · Finance Partner
+KJ
+Karl Jensen · Vendor Rep
+Opening
+GV
+Greg Vance
+Alright, let's get going — Karl, thanks for coming in. We've got about 15 minutes so I want to be efficient. Quick round of intros for the record and then we'll dive straight into the renewal terms. You all know each other but, Karl, you haven't met Fatima. She joined us as Finance Partner in April.
+11:01
+KJ
+Karl Jensen — Eastbridge Logistics
+Good to meet you, Fatima. Karl Jensen, regional account director at Eastbridge. I've been handling the Nexora account for — what is it, three years now, Greg?
+11:01
+GV
+Greg Vance
+Just over three, yeah. Good relationship overall. Which is why we want to get this renewal right. Okay — volume discounts first. Fatima, you want to kick that off?
+11:02
+Volume discounts
+FW
+Fatima Warsame
+Sure. So we're currently on a flat 4% volume discount above 500 shipments a month. Based on our projections for the next 12 months, we're expecting to hit roughly 750 to 800 per month consistently. We'd like to see a tiered structure — something like 4% at 500, stepping up to 6.5% at 700, and 8% above 900.
+11:02
+KJ
+Karl Jensen
+Those numbers are on the ambitious side for us, I'll be honest. 8% at 900 shipments — that's pretty steep. I could probably take 6% at 700 back to my team and get it approved. The 8% tier, I'd need to see some kind of volume commitment from your side before I could even consider it.
+11:03
+FW
+Fatima Warsame
+A commitment is something we can discuss. I don't want to lock in a hard floor without checking our demand planning numbers but — David, you have more visibility on the ops side. Is 750 a safe floor for us?
+11:04
+DN
+David Nguyen
+Honestly? 700 I'm very confident in. 750 is likely but I wouldn't want to put it in writing without a carve-out for Q1 — January and February we usually dip. Last year we averaged about 620 those two months. (pauses) Actually, sorry — I'm thinking of the old routing structure. We consolidated the northern routes in March, so it should hold better than that now. Let me just say 700 is solid, 750 is probable.
+11:05
+KJ
+Karl Jensen
+A 700 floor with the 6% discount — I can work with that. We'd need a 60-day notice clause if volumes drop below that, though, so we're not caught off-guard on capacity planning.
+11:06
+SLA requirements
+GV
+Greg Vance
+Good, let's hold that and come back to the 8% tier. David — SLA updates, over to you.
+11:06
+DN
+David Nguyen
+Right. Two things we need tightened. First, on-time delivery — the current SLA is 94%. We've had three months in the last year where Eastbridge came in at 91, 92. That's creating downstream issues for our warehouse scheduling. We want to move to 96% with a monthly review cycle. Second — tracking data. We need real-time GPS updates every 30 minutes on all Class B freight, not just Class A. That's been a gap.
+11:07
+KJ
+Karl Jensen
+The 96% target — I won't pretend that's easy, but I think it's achievable. Those dips last year were partly the port delays that hit everyone, to be fair. On the tracking side, expanding to Class B is a systems change on our end. It's doable but I'd want to flag that it may carry a small per-shipment cost increase. I don't have the exact figure with me — I should have brought that sheet, actually. I'll get you a number by end of week.
+11:08
+IC
+Irene Castellano
+Karl, just so I can draft the SLA clause properly — when you say "achievable" on 96%, are you willing to have that as a hard contractual target or are we talking about a best-efforts language? That distinction matters a lot for the penalty structure.
+11:09
+KJ
+Karl Jensen
+Hard target, yes — but I'd want a force majeure carve-out for things like the port situation. That's non-negotiable from our side. We can't take a penalty for something that's outside our control.
+11:09
+IC
+Irene Castellano
+That's standard, Karl. Force majeure is already in the existing agreement — we'll carry it forward. What I want to make sure we define is the notice period when a force majeure event is being invoked. In the current contract it just says "reasonable notice" and that's been ambiguous. I'd propose 48 hours.
+11:10
+KJ
+Karl Jensen
+48 hours is fine.
+11:10
+Penalty clauses
+IC
+Irene Castellano
+Okay, penalties. The current clause is a 1.5% service credit per breach event, capped at 5% of monthly invoice value. We want to revise that to 2.5% per event and lift the cap to 10%.
+11:11
+KJ
+Karl Jensen
+That's a significant jump. Going from 5 to 10% cap is — look, I understand why you'd want it but that's going to be a hard sell internally. Can we meet in the middle? 2% per event, 7% cap?
+11:11
+FW
+Fatima Warsame
+I can live with 7% if the per-event rate stays at 2.5. The cap is less important to me than the per-event number because that's what actually drives behavior.
+11:12
+IC
+Irene Castellano
+Agreed. 2.5% per event, 7% cap. Karl — one more thing on penalties. We need a clause for late reporting. If Eastbridge fails to report a SLA breach within 5 business days of it occurring, we want a flat $500 administrative fee. That's new language.
+11:12
+KJ
+Karl Jensen
+(shifts in chair) Five business days is tight depending on how we define the start of the clock. Does it run from when the breach occurs or when we become aware of it?
+11:13
+IC
+Irene Castellano
+When Eastbridge becomes aware. That's reasonable — I'll write it that way.
+11:13
+KJ
+Karl Jensen
+Then yes, I can accept that.
+11:13
+Wrap-up
+GV
+Greg Vance
+Okay, we're coming up on time. Let me summarize what I heard: 6% discount at 700-shipment floor with a 60-day notice clause, 8% tier still outstanding pending Karl's internal sign-off and a volume commitment from us. 96% OTD SLA as a hard target with force majeure carve-out and 48-hour notice. Tracking on Class B freight — Karl to send cost impact by Friday. Penalty revised to 2.5% per event, 7% cap, plus the $500 late-reporting fee. Does that capture it?
+11:14
+DN
+David Nguyen
+Yeah — I'd just add that I want to revisit the Class B tracking cost before we sign anything. If it's more than a few cents per shipment it changes the math on the discount tiers.
+11:14
+KJ
+Karl Jensen
+Understood. I'll have the number to Greg by Friday morning.
+11:14
+IC
+Irene Castellano
+Once we have that, I can turn around a revised draft within two business days. I'd like to have everything agreed before the 30th — the current contract lapses on July 5th and I don't want to be chasing signatures over a holiday weekend.
+11:15
+GV
+Greg Vance
+Agreed. Karl — good session. Let's aim to close this out next week. Thanks everyone.

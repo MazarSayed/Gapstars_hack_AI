@@ -1,0 +1,109 @@
+MEETING TRANSCRIPT
+
+
+Campaign Performance Debrief
+Tangent Creative Co.  ·  Marketing
+
+Date  Thursday, 19 June 2025
+Time  3:30 PM  —  3:45 PM
+Platform  Google Meet
+Purpose  Debrief on summer launch campaign results. Review CTR and conversion data, discuss underperforming creative, agree A/B testing priorities for August.
+
+SL
+Sofia Larsson
+Marketing Director
+EO
+Ethan Obi
+Campaign Manager
+HC
+Hannah Cole
+Copywriter
+PR
+Priya Rao
+Data Analyst
+
+
+
+
+TRANSCRIPT
+[3:30]  Sofia Larsson  ·  Marketing Director
+Okay, let's get going — we only have fifteen minutes so let's be sharp.
+Priya, do you want to kick us off with the headline numbers from the summer campaign?
+
+
+[3:30]  Priya Rao  ·  Data Analyst
+Sure. So overall CTR came in at 2.4%, which is actually above our 2.1% benchmark — that's the good news.
+Conversion rate, though, dropped to 1.8% against a target of 2.5%. So we drove clicks but lost people somewhere in the funnel.
+The worst performer was the animated banner set — 0.9% CTR, way below everything else.
+
+
+[3:31]  Ethan Obi  ·  Campaign Manager
+Yeah, I had a feeling about those banners. We pushed them live pretty late and I don't think we had time to QA them properly on mobile.
+I should've flagged that before launch, honestly.
+
+
+[3:32]  Sofia Larsson  ·  Marketing Director
+Okay, noted. What about the email sequence — Hannah, that was yours, right?
+
+
+[3:32]  Hannah Cole  ·  Copywriter
+Yeah, so open rates were solid — around 34%, which I was happy with. But click-through from the emails tanked after message three.
+Looking back, I think the CTAs in messages four and five were too vague. I used 'learn more' when I should have been more specific about what they were clicking into.
+Classic mistake, I know. Won't happen again.
+
+
+[3:33]  Priya Rao  ·  Data Analyst
+That lines up with the funnel data. We saw a big drop-off right at that point in the sequence.
+There's also something weird happening with the landing page on tablet — bounce rate spikes to like 68% on that breakpoint specifically.
+Ethan, is that a known issue?
+
+
+[3:33]  Ethan Obi  ·  Campaign Manager
+Ugh, no — well, kind of? The dev team mentioned something about a layout issue two weeks before launch but I thought it was resolved.
+I'll chase that up today, that's on me.
+
+
+[3:34]  Sofia Larsson  ·  Marketing Director
+Please do, and get me a status by EOD. Priya, which creative actually performed well? I want to make sure we're not just focusing on the problems.
+
+
+[3:35]  Priya Rao  ·  Data Analyst
+The static lifestyle photography ads were genuinely strong — 3.1% CTR and the conversion rate held up at 2.3% for that segment.
+The 'limited time' urgency variant in the email subject lines also outperformed. That one actually got a 38% open rate.
+
+
+[3:35]  Hannah Cole  ·  Copywriter
+That urgency angle — I wasn't sure about it at the time, felt a bit pushy, but clearly the audience responded.
+Maybe I've been too conservative with the copy. I'd like to test a more direct, benefit-led approach in August.
+
+
+[3:36]  Sofia Larsson  ·  Marketing Director
+Good insight. Let's build that into the A/B tests. Ethan, what are you thinking for August priorities?
+
+
+[3:36]  Ethan Obi  ·  Campaign Manager
+I want to run three tests. First — static versus animated creative. We need to properly settle that question with real data.
+Second — the landing page headline. We've had the same one since March, it needs a refresh.
+And third, honestly, I think we should test two completely different funnel flows — one short-form, one long — and see which converts better for this audience.
+
+
+[3:38]  Priya Rao  ·  Data Analyst
+I can set up the tracking structure for all three. I'll need the creative assets and copy variants by the 15th if we want to launch by end of July.
+Oh — and can someone double-check the UTM parameters this time? Half the August tracking broke last time because the parameters weren't consistent.
+
+
+[3:38]  Ethan Obi  ·  Campaign Manager
+That one was me, yeah. I'll own the UTM template for the next campaign and share it out before anything goes live.
+
+
+[3:39]  Hannah Cole  ·  Copywriter
+I can have the copy variants ready by the 12th — gives a bit of buffer. I'll focus on the direct benefit-led approach we talked about versus the current messaging.
+Should I also take a look at the email sequence and tighten up those later CTAs at the same time?
+
+
+[3:40]  Sofia Larsson  ·  Marketing Director
+Yes, please do — let's fix that regardless of the A/B tests. Alright, we're nearly out of time.
+Quick summary: Priya will set up tracking, Ethan will chase the tablet bug today and own UTMs going forward, Hannah will revise copy by the 12th.
+I'll schedule a brief sync for the 16th to check assets are ready before we go live. Good work, everyone — the CTR number is genuinely encouraging. Let's convert it next time.
+
+
