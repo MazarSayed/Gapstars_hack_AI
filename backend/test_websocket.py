@@ -73,6 +73,9 @@ def test_ws_streaming():
                 print(f"[ERROR]  {msg['message']}")
                 sys.exit(1)
 
+            else:
+                print(f"[EVENT: {event}]  {msg.keys()}")
+
     print("\n" + "=" * 60)
     print(f"Summary chunks   : {summary_chunks}")
     print(f"Actions chunks   : {actions_chunks}")
