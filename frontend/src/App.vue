@@ -404,10 +404,18 @@ const runWorkflow = async () => {
         } 
         
         else if (data.type === 'summary_done') {
+          if (summaryQueue.length > 0) {
+            summaryStream.value += summaryQueue.join('');
+            summaryQueue = [];
+          }
           summaryResult.value = data.data;
         } 
         
         else if (data.type === 'actions_done') {
+          if (actionsQueue.length > 0) {
+            actionsStream.value += actionsQueue.join('');
+            actionsQueue = [];
+          }
           actionReportResult.value = data.data;
         }
 
@@ -418,6 +426,10 @@ const runWorkflow = async () => {
         }
 
         else if (data.type === 'followup_done') {
+          if (followupQueue.length > 0) {
+            followupStream.value += followupQueue.join('');
+            followupQueue = [];
+          }
           followupResult.value = data.data;
         }
 
