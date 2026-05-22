@@ -307,6 +307,15 @@ async def ws_summarize(websocket: WebSocket):
         data = await websocket.receive_json()
         transcript = data.get("transcript", SAMPLE_TRANSCRIPT)
         language = data.get("language", "English")
+        project_id = data.get("project_id")
+        filename = data.get("filename")
+
+        if project_id:
+            project = await db.get_project(project_id)
+            if project is None:
+                await websocket.send_json({"type": "error", "message": "Project not found"})
+                await websocket.close()
+                return
 
         client = make_client()
 
@@ -346,9 +355,24 @@ async def ws_summarize(websocket: WebSocket):
                 await send({"type": "status", "message": "Drafting follow-up email and Jira tasks..."})
                 followup_data = await run_and_stream(stream_followup_agent, "followup", summary_data, actions_data)
 
+                # Save meeting to db if project_id is provided
+                new_meeting_id = None
+                if project_id:
+                    await send({"type": "status", "message": "Saving meeting to database..."})
+                    new_meeting_id = await db.add_meeting(
+                        project_id,
+                        filename or "Untitled Meeting",
+                        transcript,
+                        summary_data,
+                        actions_data,
+                        followup_data
+                    )
+                    # refresh project summary in background
+                    asyncio.create_task(_refresh_project_summary(project_id))
+
                 root.update(output={"action_count": len(actions_data.get("action_items", []))})
 
-        await websocket.send_json({"type": "complete"})
+        await websocket.send_json({"type": "complete", "meeting_id": new_meeting_id})
 
     except WebSocketDisconnect:
         pass

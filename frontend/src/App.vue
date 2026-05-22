@@ -263,6 +263,83 @@ const createProject = async () => {
   } finally { isCreatingProject.value = false; }
 };
 
+// ── Upload & Streaming State ──────────────────────────────────────────────────
+const isStreaming = ref(false);
+const currentStep = ref(1); // 1: Extracting transcript, 2: Streaming Summary/Actions, 3: Drafting Followup, 4: Saving, 5: Done
+const streamLogs = ref([]);
+const streamSummaryRaw = ref('');
+const streamActionsRaw = ref('');
+const streamFollowupRaw = ref('');
+
+// Extracted variables via partial JSON parser
+const liveConciseSummary = ref('');
+const liveActionItems = ref([]);
+const liveEmailBody = ref('');
+
+const addStreamLog = (msg) => {
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  streamLogs.value.push({ time, message: msg });
+  nextTick(() => {
+    const el = document.getElementById('streaming-logs');
+    if (el) el.scrollTop = el.scrollHeight;
+  });
+};
+
+const updateLiveSummary = (accumulated) => {
+  const match = accumulated.match(/"concise_summary"\s*:\s*"((?:[^"\\]|\\.)*)/);
+  if (match) {
+    try {
+      liveConciseSummary.value = JSON.parse('"' + match[1].replace(/([^"\\])$/, '$1"') + '"');
+    } catch {
+      liveConciseSummary.value = match[1];
+    }
+  }
+};
+
+const updateLiveActions = (accumulated) => {
+  const list = [];
+  const match = accumulated.match(/"action_items"\s*:\s*\[([\s\S]*?)\]/);
+  if (match) {
+    try {
+      const items = JSON.parse('[' + match[1] + ']');
+      liveActionItems.value = items;
+      return;
+    } catch {
+      const objRegex = /\{[^{}]*?\}/g;
+      let m;
+      while ((m = objRegex.exec(match[1])) !== null) {
+        try {
+          list.push(JSON.parse(m[0]));
+        } catch {}
+      }
+    }
+  } else {
+    const arrayStart = accumulated.indexOf('"action_items"');
+    if (arrayStart !== -1) {
+      const partialArray = accumulated.substring(arrayStart);
+      const objRegex = /\{[^{}]*?\}/g;
+      let m;
+      while ((m = objRegex.exec(partialArray)) !== null) {
+        try {
+          list.push(JSON.parse(m[0]));
+        } catch {}
+      }
+    }
+  }
+  liveActionItems.value = list;
+};
+
+const updateLiveFollowup = (accumulated) => {
+  const match = accumulated.match(/"email_body"\s*:\s*"((?:[^"\\]|\\.)*)/);
+  if (match) {
+    try {
+      liveEmailBody.value = JSON.parse('"' + match[1].replace(/([^"\\])$/, '$1"') + '"');
+    } catch {
+      liveEmailBody.value = match[1];
+    }
+  }
+};
+
 // ── Upload ────────────────────────────────────────────────────────────────────
 const openUpload = (pid = '') => {
   uploadFile.value = null;
@@ -308,29 +385,146 @@ const doUpload = async () => {
   if (!ACCEPTED_EXTS.has(ext)) { uploadError.value = `Unsupported file type ".${ext}".`; return; }
 
   isUploading.value = true;
-  uploadStatus.value = 'Analyzing transcript — this may take a minute…';
+  isStreaming.value = true;
+  currentStep.value = 1;
+  streamLogs.value = [];
+  streamSummaryRaw.value = '';
+  streamActionsRaw.value = '';
+  streamFollowupRaw.value = '';
+  liveConciseSummary.value = '';
+  liveActionItems.value = [];
+  liveEmailBody.value = '';
   uploadError.value = '';
+
+  addStreamLog(`Extracting transcript from ${uploadFile.value.name}...`);
 
   const form = new FormData();
   form.append('file', uploadFile.value);
 
+  let transcript = '';
+  let filename = uploadFile.value.name;
+
   try {
-    const res = await fetch(`${getBase()}/project/${pid}/meeting`, { method: 'POST', body: form });
-    if (res.ok) {
-      const result = await res.json();
-      const proj = sidebarProjects.value.find(p => p.project_id === pid);
-      if (proj) proj.meeting_count = result.total_meetings;
-      delete projectCache.value[pid];
-      delete summaryCache.value[pid];
-      showUpload.value = false;
-      showToast(`"${result.meeting_name}" added`);
-      await selectProject(pid);
-    } else {
-      const err = await res.json().catch(() => ({ detail: 'Upload failed' }));
-      uploadError.value = err.detail;
+    const res = await fetch(`${getBase()}/upload/transcript`, { method: 'POST', body: form });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to extract transcript' }));
+      throw new Error(err.detail || 'Transcript extraction failed.');
     }
-  } catch (e) { uploadError.value = e.message; }
-  finally { isUploading.value = false; uploadStatus.value = ''; }
+    const transcriptData = await res.json();
+    transcript = transcriptData.transcript;
+    filename = transcriptData.filename || filename;
+  } catch (e) {
+    uploadError.value = e.message;
+    isUploading.value = false;
+    isStreaming.value = false;
+    return;
+  }
+
+  addStreamLog('Transcript extracted successfully.');
+  currentStep.value = 2;
+  addStreamLog('Connecting to AI analyzer stream...');
+
+  let ws = null;
+  try {
+    const p = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    const wsUrl = (host.includes('localhost') || host.includes('127.0.0.1'))
+      ? `${p}//localhost:8000/ws/summarize`
+      : `${p}//${host}/ws/summarize`;
+
+    ws = new WebSocket(wsUrl);
+  } catch (e) {
+    uploadError.value = `WebSocket connection failed: ${e.message}`;
+    isUploading.value = false;
+    isStreaming.value = false;
+    return;
+  }
+
+  ws.onopen = () => {
+    addStreamLog('Connected to AI streaming service. Starting analysis...');
+    ws.send(JSON.stringify({
+      transcript,
+      language: 'English',
+      project_id: pid,
+      filename
+    }));
+  };
+
+  ws.onmessage = async (e) => {
+    const msg = JSON.parse(e.data);
+
+    if (msg.type === 'status') {
+      addStreamLog(msg.message);
+      if (msg.message.includes('Drafting')) {
+        currentStep.value = 3;
+      } else if (msg.message.includes('Saving')) {
+        currentStep.value = 4;
+      }
+    } else if (msg.type === 'summary_chunk') {
+      streamSummaryRaw.value += msg.chunk;
+      updateLiveSummary(streamSummaryRaw.value);
+      nextTick(() => {
+        const el = document.getElementById('live-summary-body');
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    } else if (msg.type === 'actions_chunk') {
+      streamActionsRaw.value += msg.chunk;
+      updateLiveActions(streamActionsRaw.value);
+      nextTick(() => {
+        const el = document.getElementById('live-actions-body');
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    } else if (msg.type === 'followup_chunk') {
+      streamFollowupRaw.value += msg.chunk;
+      updateLiveFollowup(streamFollowupRaw.value);
+      nextTick(() => {
+        const el = document.getElementById('live-followup-body');
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    } else if (msg.type === 'summary_done') {
+      addStreamLog('Summary generated completely.');
+    } else if (msg.type === 'actions_done') {
+      addStreamLog('Action items extracted completely.');
+    } else if (msg.type === 'followup_done') {
+      addStreamLog('Follow-up drafts written completely.');
+    } else if (msg.type === 'complete') {
+      addStreamLog('Meeting analysis completed and saved successfully.');
+      currentStep.value = 5;
+      ws.close();
+
+      setTimeout(async () => {
+        await fetchProjects();
+        delete projectCache.value[pid];
+        delete summaryCache.value[pid];
+        showUpload.value = false;
+        isUploading.value = false;
+        isStreaming.value = false;
+        showToast(`"${filename}" added`);
+        if (msg.meeting_id) {
+          await selectMeeting(pid, msg.meeting_id);
+        } else {
+          await selectProject(pid);
+        }
+      }, 1000);
+    } else if (msg.type === 'error') {
+      uploadError.value = msg.message;
+      addStreamLog(`Error: ${msg.message}`);
+      isUploading.value = false;
+      isStreaming.value = false;
+      ws.close();
+    }
+  };
+
+  ws.onerror = (err) => {
+    uploadError.value = 'WebSocket connection error occurred.';
+    addStreamLog('Error: WebSocket connection failed.');
+    isUploading.value = false;
+    isStreaming.value = false;
+  };
+
+  ws.onclose = () => {
+    addStreamLog('Connection closed.');
+  };
 };
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
@@ -416,65 +610,193 @@ onMounted(() => {
     <!-- ══ Upload Modal ══ -->
     <Teleport to="body">
       <div v-if="showUpload" class="modal-backdrop" @click.self="closeUpload">
-        <div class="modal-card">
-          <div class="modal-header">
-            <h3>Add Meeting</h3>
-            <button class="modal-close-btn" @click="closeUpload" :disabled="isUploading">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
-          </div>
-
-          <div class="modal-dropzone"
-            :class="{ dragover: isDragover, 'has-file': !!uploadFile }"
-            @dragover.prevent="isDragover = true"
-            @dragleave="isDragover = false"
-            @drop="handleUploadDrop"
-            @click="!uploadFile && uploadFileRef?.click()"
-          >
-            <input type="file" ref="uploadFileRef" class="hidden-input"
-              accept=".txt,.docx,.pdf,.mp3,.wav,.ogg,.m4a,.aac,.mp4,.mov,.avi,.webm"
-              @change="e => { if (e.target.files[0]) uploadFile = e.target.files[0]; }" />
-            <div v-if="!uploadFile" class="dropzone-content">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-              <p><strong>Drop file here</strong> or click to browse</p>
-              <p class="file-hint">TXT · DOCX · PDF · MP3 · MP4 and more</p>
-            </div>
-            <div v-else class="file-selected-row">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-              <span class="file-name">{{ uploadFile.name }}</span>
-              <button class="remove-file-btn" @click.stop="uploadFile = null">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        <div :class="isStreaming ? 'streaming-modal-card' : 'modal-card'">
+          <template v-if="!isStreaming">
+            <div class="modal-header">
+              <h3>Add Meeting</h3>
+              <button class="modal-close-btn" @click="closeUpload" :disabled="isUploading">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
             </div>
-          </div>
 
-          <div class="modal-field">
-            <label>Assign to Project</label>
-            <select v-model="uploadProjectId" :disabled="isUploading">
-              <option v-for="p in sidebarProjects" :key="p.project_id" :value="p.project_id">
-                {{ p.name }} ({{ p.meeting_count }} meetings)
-              </option>
-              <option value="__new__">+ Create new project…</option>
-            </select>
-          </div>
+            <div class="modal-dropzone"
+              :class="{ dragover: isDragover, 'has-file': !!uploadFile }"
+              @dragover.prevent="isDragover = true"
+              @dragleave="isDragover = false"
+              @drop="handleUploadDrop"
+              @click="!uploadFile && uploadFileRef?.click()"
+            >
+              <input type="file" ref="uploadFileRef" class="hidden-input"
+                accept=".txt,.docx,.pdf,.mp3,.wav,.ogg,.m4a,.aac,.mp4,.mov,.avi,.webm"
+                @change="e => { if (e.target.files[0]) uploadFile = e.target.files[0]; }" />
+              <div v-if="!uploadFile" class="dropzone-content">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <p><strong>Drop file here</strong> or click to browse</p>
+                <p class="file-hint">TXT · DOCX · PDF · MP3 · MP4 and more</p>
+              </div>
+              <div v-else class="file-selected-row">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                <span class="file-name">{{ uploadFile.name }}</span>
+                <button class="remove-file-btn" @click.stop="uploadFile = null">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+              </div>
+            </div>
 
-          <div v-if="uploadProjectId === '__new__'" class="modal-field">
-            <label>New Project Name</label>
-            <input class="text-input-field" v-model="uploadNewName"
-              placeholder="e.g. Q3 Product Planning" :disabled="isUploading" />
-          </div>
+            <div class="modal-field">
+              <label>Assign to Project</label>
+              <select v-model="uploadProjectId" :disabled="isUploading">
+                <option v-for="p in sidebarProjects" :key="p.project_id" :value="p.project_id">
+                  {{ p.name }} ({{ p.meeting_count }} meetings)
+                </option>
+                <option value="__new__">+ Create new project…</option>
+              </select>
+            </div>
 
-          <p v-if="uploadStatus" class="upload-status-msg">{{ uploadStatus }}</p>
-          <p v-if="uploadError" class="upload-error-msg">{{ uploadError }}</p>
+            <div v-if="uploadProjectId === '__new__'" class="modal-field">
+              <label>New Project Name</label>
+              <input class="text-input-field" v-model="uploadNewName"
+                placeholder="e.g. Q3 Product Planning" :disabled="isUploading" />
+            </div>
 
-          <div class="modal-actions">
-            <button class="secondary-btn" @click="closeUpload" :disabled="isUploading">Cancel</button>
-            <button class="primary-btn upload-btn-modal"
-              :disabled="isUploading || !uploadFile" @click="doUpload">
-              <span v-if="isUploading" class="spinner-tiny"></span>
-              {{ isUploading ? 'Processing…' : 'Upload & Analyze' }}
-            </button>
-          </div>
+            <p v-if="uploadStatus" class="upload-status-msg">{{ uploadStatus }}</p>
+            <p v-if="uploadError" class="upload-error-msg">{{ uploadError }}</p>
+
+            <div class="modal-actions">
+              <button class="secondary-btn" @click="closeUpload" :disabled="isUploading">Cancel</button>
+              <button class="primary-btn upload-btn-modal"
+                :disabled="isUploading || !uploadFile" @click="doUpload">
+                <span v-if="isUploading" class="spinner-tiny"></span>
+                {{ isUploading ? 'Processing…' : 'Upload & Analyze' }}
+              </button>
+            </div>
+          </template>
+
+          <template v-else>
+            <div class="streaming-header">
+              <h3>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spinner-tiny" style="margin-right: 5px;"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 1 10 10"></path></svg>
+                Live AI Analysis
+                <span class="streaming-header-badge">
+                  Processing
+                </span>
+              </h3>
+              <span class="file-name" style="font-size: 13.5px; opacity: 0.85;">{{ uploadFile?.name }}</span>
+            </div>
+
+            <div class="streaming-stepper">
+              <div class="streaming-step" :class="{ active: currentStep === 1, completed: currentStep > 1 }">
+                <span class="streaming-step-icon">1</span>
+                <span>Extracting Transcript</span>
+              </div>
+              <div class="streaming-step" :class="{ active: currentStep === 2, completed: currentStep > 2 }">
+                <span class="streaming-step-icon">2</span>
+                <span>Streaming Analysis</span>
+              </div>
+              <div class="streaming-step" :class="{ active: currentStep === 3, completed: currentStep > 3 }">
+                <span class="streaming-step-icon">3</span>
+                <span>Drafting Follow-ups</span>
+              </div>
+              <div class="streaming-step" :class="{ active: currentStep === 4, completed: currentStep > 4 }">
+                <span class="streaming-step-icon">4</span>
+                <span>Saving Meeting</span>
+              </div>
+            </div>
+
+            <div class="streaming-panels-grid">
+              <!-- Panel 1: Live Summary -->
+              <div class="streaming-panel-card" :class="{ active: currentStep === 2 }">
+                <div class="streaming-panel-header">
+                  <h4>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                    Live Summary
+                  </h4>
+                  <span class="streaming-panel-status" :class="currentStep === 2 ? 'streaming' : (currentStep > 2 ? 'done' : 'waiting')">
+                    {{ currentStep === 2 ? 'Streaming' : (currentStep > 2 ? 'Done' : 'Waiting') }}
+                  </span>
+                </div>
+                <div class="streaming-panel-body" id="live-summary-body" :class="{ streaming: currentStep === 2 }">
+                  <div v-if="!liveConciseSummary && currentStep <= 2" class="streaming-panel-card-empty">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <span>Awaiting agent response...</span>
+                  </div>
+                  <div v-else>
+                    <p>{{ liveConciseSummary }}<span v-if="currentStep === 2" class="typing-cursor">▋</span></p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Panel 2: Live Action Items -->
+              <div class="streaming-panel-card" :class="{ active: currentStep === 2 }">
+                <div class="streaming-panel-header">
+                  <h4>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                    Live Action Items
+                  </h4>
+                  <span class="streaming-panel-status" :class="currentStep === 2 ? 'streaming' : (currentStep > 2 ? 'done' : 'waiting')">
+                    {{ currentStep === 2 ? 'Streaming' : (currentStep > 2 ? 'Done' : 'Waiting') }}
+                  </span>
+                </div>
+                <div class="streaming-panel-body" id="live-actions-body" :class="{ streaming: currentStep === 2 }">
+                  <div v-if="!liveActionItems.length && currentStep <= 2" class="streaming-panel-card-empty">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <span>Awaiting agent response...</span>
+                  </div>
+                  <div v-else class="streaming-action-list">
+                    <div v-for="(item, idx) in liveActionItems" :key="idx" class="streaming-action-list-item">
+                      <div class="streaming-action-title">
+                        {{ item.action }}
+                        <span v-if="item.priority" class="streaming-action-badge" :class="'prio-' + item.priority.toLowerCase()">
+                          {{ item.priority }}
+                        </span>
+                      </div>
+                      <div class="streaming-action-meta">
+                        <span v-if="item.owner">Owner: {{ item.owner }}</span>
+                        <span v-if="item.due_date">Due: {{ item.due_date }}</span>
+                      </div>
+                    </div>
+                    <span v-if="currentStep === 2" class="typing-cursor" style="margin-top: 10px;">▋</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Panel 3: Live Follow-up Email -->
+              <div class="streaming-panel-card" :class="{ active: currentStep === 3 }">
+                <div class="streaming-panel-header">
+                  <h4>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                    Live Follow-up Email
+                  </h4>
+                  <span class="streaming-panel-status" :class="currentStep === 3 ? 'streaming' : (currentStep > 3 ? 'done' : 'waiting')">
+                    {{ currentStep === 3 ? 'Streaming' : (currentStep > 3 ? 'Done' : 'Waiting') }}
+                  </span>
+                </div>
+                <div class="streaming-panel-body" id="live-followup-body" :class="{ streaming: currentStep === 3 }" style="font-family: monospace; white-space: pre-wrap;">
+                  <div v-if="!liveEmailBody && currentStep <= 3" class="streaming-panel-card-empty">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <span>Awaiting agent response...</span>
+                  </div>
+                  <div v-else>
+                    {{ liveEmailBody }}<span v-if="currentStep === 3" class="typing-cursor">▋</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="streaming-terminal-output" id="streaming-logs">
+              <div v-for="(log, idx) in streamLogs" :key="idx" class="terminal-line">
+                <span class="terminal-timestamp">[{{ log.time }}]</span>
+                <span class="terminal-text">{{ log.message }}</span>
+              </div>
+            </div>
+
+            <p v-if="uploadError" class="upload-error-msg" style="margin-top: 10px; margin-bottom: 0;">{{ uploadError }}</p>
+
+            <div v-if="uploadError" class="modal-actions" style="margin-top: 15px; padding-top: 0; border: none; justify-content: flex-end; gap: 10px;">
+              <button class="secondary-btn" @click="isStreaming = false; isUploading = false; uploadError = '';">Back</button>
+              <button class="primary-btn" @click="doUpload">Retry</button>
+            </div>
+          </template>
         </div>
       </div>
     </Teleport>
