@@ -599,6 +599,164 @@ const renderMarkdown = (text) => {
   return marked.parse(text, { breaks: true });
 };
 
+// ── Demo Visualizer State ──────────────────────────────────────────────────────
+const demoSelectedNode = ref('input'); // 'input' | 'translator' | 'coordinator' | 'summarizer' | 'actions' | 'websocket' | 'frontend'
+const demoSimulationActive = ref(false);
+const demoSimulationStep = ref(0); // 0: idle, 1: input scanning, 2: translator check, 3: coordinator dispatch, 4: parallel execution, 5: ws streaming, 6: done
+const demoLogs = ref([]);
+const demoSummaryText = ref('');
+const demoActionsList = ref([]);
+const demoInspectorTab = ref('prompt_summarizer'); // 'prompt_summarizer' | 'prompt_action' | 'pydantic' | 'fastapi'
+let demoInterval = null;
+
+// Mock Data for streaming simulation
+const mockTranscript = `Sarah: We need to finalize the landing page designs by Friday.
+Dave: I can take care of the landing page mockups.
+Sarah: Great, Dave. Also, we need to schedule user testing for next week. Let's aim for Tuesday, and make sure we have at least 5 participants.
+John: I'll recruit the users and set up the testing schedule by Monday.`;
+
+const mockSummaryChunks = [
+  "The team ", "discussed ", "finalizing the landing ", "page designs by Friday ", "and scheduling user ", 
+  "testing for next week. ", "Dave will own ", "the landing page designs, ", "and John will recruit ", 
+  "5 participants for user ", "testing and schedule ", "the sessions by Monday."
+];
+
+const mockActions = [
+  { action: "Finalize landing page mockups", owner: "Dave", due_date: "Friday", priority: "High", status: "Clear" },
+  { action: "Recruit 5 user testing participants & schedule sessions", owner: "John", due_date: "Monday", priority: "High", status: "Clear" }
+];
+
+const goDemo = () => {
+  view.value = 'demo';
+  activeProjectId.value = null;
+  activeMeetingId.value = null;
+  closeChat();
+  resetDemo();
+};
+
+const resetDemo = () => {
+  if (demoInterval) {
+    clearInterval(demoInterval);
+    demoInterval = null;
+  }
+  demoSimulationActive.value = false;
+  demoSimulationStep.value = 0;
+  demoSelectedNode.value = 'input';
+  demoLogs.value = [];
+  demoSummaryText.value = '';
+  demoActionsList.value = [];
+  addDemoLog("System idle. Click 'Start Simulation' to begin.");
+};
+
+const addDemoLog = (msg) => {
+  const time = new Date().toLocaleTimeString([], { hour12: false });
+  demoLogs.value.push({ time, message: msg });
+  // Scroll demo terminal to bottom
+  nextTick(() => {
+    const el = document.getElementById('demo-terminal-body');
+    if (el) el.scrollTop = el.scrollHeight;
+  });
+};
+
+const startDemoSimulation = () => {
+  resetDemo();
+  demoSimulationActive.value = true;
+  runDemoStep();
+};
+
+const runDemoStep = () => {
+  if (!demoSimulationActive.value) return;
+
+  // Step 1: Input transcript uploaded
+  demoSimulationStep.value = 1;
+  demoSelectedNode.value = 'input';
+  addDemoLog("INFO: Initializing analysis workflow...");
+  addDemoLog("INFO: Reading input transcript (138 characters)");
+  
+  // Step 2: Language Check after 1.5s
+  setTimeout(() => {
+    if (!demoSimulationActive.value) return;
+    demoSimulationStep.value = 2;
+    demoSelectedNode.value = 'translator';
+    addDemoLog("INFO: Language detector triggered");
+    addDemoLog("INFO: Language detected: 'English'. Skipping translation agent.");
+    
+    // Step 3: Parallel Dispatcher after 1.5s
+    setTimeout(() => {
+      if (!demoSimulationActive.value) return;
+      demoSimulationStep.value = 3;
+      demoSelectedNode.value = 'coordinator';
+      addDemoLog("WS CONNECTING: ws://localhost:8000/ws/summarize");
+      addDemoLog("WS CONNECTED: Session 4f9e-a89c initialized");
+      addDemoLog("INFO: Invoking parallel agents via asyncio.gather()");
+      
+      // Step 4: Parallel Agent Execution after 1.8s
+      setTimeout(() => {
+        if (!demoSimulationActive.value) return;
+        demoSimulationStep.value = 4;
+        demoSelectedNode.value = 'summarizer'; // Highlight summarizer
+        demoInspectorTab.value = 'prompt_summarizer';
+        addDemoLog("AGENT 1 (Summarizer): Prompting Gemini-1.5-Flash...");
+        addDemoLog("AGENT 2 (Action Item): Prompting Gemini-1.5-Flash...");
+        
+        // Parallel prompt logging
+        setTimeout(() => {
+          if (!demoSimulationActive.value) return;
+          demoSelectedNode.value = 'actions'; // Highlight action agent
+          demoInspectorTab.value = 'prompt_action';
+          addDemoLog("AGENT 1: Gemini response received. Parsing JSON.");
+          addDemoLog("AGENT 2: Gemini response received. Parsing JSON.");
+          
+          // Step 5: WS Streaming after 1.5s
+          setTimeout(() => {
+            if (!demoSimulationActive.value) return;
+            demoSimulationStep.value = 5;
+            demoSelectedNode.value = 'websocket';
+            addDemoLog("WS SEND: Starting JSON stream chunks serialization");
+            
+            let chunkIdx = 0;
+            demoInterval = setInterval(() => {
+              if (!demoSimulationActive.value) {
+                clearInterval(demoInterval);
+                return;
+              }
+              
+              if (chunkIdx < mockSummaryChunks.length) {
+                const chunk = mockSummaryChunks[chunkIdx];
+                demoSummaryText.value += chunk;
+                addDemoLog(`WS RECV (summary_chunk): "${chunk}"`);
+                
+                // Gradually feed action items
+                if (chunkIdx === 4) {
+                  demoActionsList.value.push(mockActions[0]);
+                  addDemoLog(`WS RECV (actions_done): Added high priority action for ${mockActions[0].owner}`);
+                }
+                if (chunkIdx === 9) {
+                  demoActionsList.value.push(mockActions[1]);
+                  addDemoLog(`WS RECV (actions_done): Added action for ${mockActions[1].owner}`);
+                }
+                
+                chunkIdx++;
+              } else {
+                clearInterval(demoInterval);
+                demoInterval = null;
+                
+                // Step 6: Done
+                demoSimulationStep.value = 6;
+                demoSelectedNode.value = 'frontend';
+                addDemoLog("WS RECV: { type: 'complete', status: 'saved', id: 'meeting_demo_99' }");
+                addDemoLog("INFO: Pipeline execution completed successfully in 8.4s");
+                demoSimulationActive.value = false;
+              }
+            }, 600); // stream a chunk every 600ms
+            
+          }, 1500);
+        }, 1200);
+      }, 1500);
+    }, 1500);
+  }, 1500);
+};
+
 // ── Watchers ──────────────────────────────────────────────────────────────────
 watch(activeTab, (newTab) => {
   if (newTab === 'chat') {
@@ -946,7 +1104,7 @@ onMounted(() => {
         <header class="top-bar">
           <nav class="breadcrumb">
             <button class="bc-link" @click="goOverview">Home</button>
-            <template v-if="view !== 'overview'">
+            <template v-if="view !== 'overview' && view !== 'demo'">
               <span class="bc-sep">/</span>
               <button class="bc-link" @click="selectProject(activeProjectId)">
                 {{ activeProjectInList?.name || '…' }}
@@ -956,9 +1114,18 @@ onMounted(() => {
               <span class="bc-sep">/</span>
               <span class="bc-current">{{ activeMeeting?.name || 'Meeting' }}</span>
             </template>
+            <template v-if="view === 'demo'">
+              <span class="bc-sep">/</span>
+              <span class="bc-current">System Demo</span>
+            </template>
           </nav>
 
           <div class="top-bar-actions">
+            <button class="demo-btn" :class="{ active: view === 'demo' }" @click="goDemo">
+              <span class="demo-pulse-dot"></span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px;"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+              <span>Inner Workings (Demo)</span>
+            </button>
             <button class="add-meeting-btn" @click="openUpload(activeProjectId || '')">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
               Add Meeting
@@ -973,8 +1140,403 @@ onMounted(() => {
         <!-- Content -->
         <main class="content-area">
 
+          <!-- ── System Demo ── -->
+          <div v-if="view === 'demo'" class="view-demo animate-fade-in">
+            <div class="view-header project-view-header">
+              <div>
+                <h1>System Architecture & Flow Demo</h1>
+                <p class="view-subtitle">Visualize how parallel agents process transcripts, stream JSON via FastAPI WebSockets, and update the UI in real-time.</p>
+              </div>
+              <div class="project-header-btns">
+                <button class="primary-btn" @click="startDemoSimulation" :disabled="demoSimulationActive" style="width: auto;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                  {{ demoSimulationStep > 0 && !demoSimulationActive ? 'Re-run Demo' : 'Start Simulation' }}
+                </button>
+                <button class="secondary-btn" @click="resetDemo">
+                  Reset
+                </button>
+              </div>
+            </div>
+
+            <!-- Pipeline Architecture Flow Diagram -->
+            <div class="demo-card pipeline-card">
+              <h3 class="panel-section-title">Interactive System Pipeline</h3>
+              <p class="panel-section-desc">Click any node in the diagram to inspect its backend code, prompts, or data schemas in the inspector panel.</p>
+
+              <div class="pipeline-flow-wrapper">
+                <!-- Node 1: Input -->
+                <div class="pipeline-node-container" :class="{ active: demoSelectedNode === 'input', current: demoSimulationStep === 1 }">
+                  <div class="pipeline-node" @click="demoSelectedNode = 'input'">
+                    <div class="node-icon-wrap">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                    </div>
+                    <span class="node-name">Raw Transcript</span>
+                    <span class="node-sub">Meeting notes / file</span>
+                  </div>
+                </div>
+
+                <div class="flow-arrow" :class="{ running: demoSimulationStep >= 1, completed: demoSimulationStep > 1 }">
+                  <svg width="30" height="20" viewBox="0 0 30 20" fill="none"><path d="M0 10 H26 M20 4 L26 10 L20 16" stroke="currentColor" stroke-width="2"></path></svg>
+                </div>
+
+                <!-- Node 2: Translator Check -->
+                <div class="pipeline-node-container" :class="{ active: demoSelectedNode === 'translator', current: demoSimulationStep === 2 }">
+                  <div class="pipeline-node" @click="demoSelectedNode = 'translator'">
+                    <div class="node-icon-wrap">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15h-4.6a2 2 0 0 1-1.85-1.28L12 7l-2.55 6.72A2 2 0 0 1 7.6 15H3"></path></svg>
+                    </div>
+                    <span class="node-name">Language Check</span>
+                    <span class="node-sub">Translator Agent</span>
+                  </div>
+                </div>
+
+                <div class="flow-arrow" :class="{ running: demoSimulationStep >= 2, completed: demoSimulationStep > 2 }">
+                  <svg width="30" height="20" viewBox="0 0 30 20" fill="none"><path d="M0 10 H26 M20 4 L26 10 L20 16" stroke="currentColor" stroke-width="2"></path></svg>
+                </div>
+
+                <!-- Node 3: Coordinator / asyncio.gather -->
+                <div class="pipeline-node-container" :class="{ active: demoSelectedNode === 'coordinator', current: demoSimulationStep === 3 }">
+                  <div class="pipeline-node" @click="demoSelectedNode = 'coordinator'">
+                    <div class="node-icon-wrap">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    </div>
+                    <span class="node-name">Parallel Coordinator</span>
+                    <span class="node-sub">asyncio.gather()</span>
+                  </div>
+                </div>
+
+                <!-- Parallel Path Split Arrows -->
+                <div class="split-arrows">
+                  <svg width="40" height="80" viewBox="0 0 40 80" fill="none" class="split-path-svg">
+                    <path d="M0 40 H15 Q20 40 20 20 V15 Q20 10 30 10 H40" stroke="currentColor" stroke-width="2" class="path-upper" :class="{ running: demoSimulationStep >= 3, completed: demoSimulationStep > 3 }"></path>
+                    <path d="M0 40 H15 Q20 40 20 60 V65 Q20 70 30 70 H40" stroke="currentColor" stroke-width="2" class="path-lower" :class="{ running: demoSimulationStep >= 3, completed: demoSimulationStep > 3 }"></path>
+                  </svg>
+                </div>
+
+                <!-- Parallel Agent Sub-block -->
+                <div class="parallel-agents-column">
+                  <!-- Node 4: Summarizer Agent -->
+                  <div class="pipeline-node-container" :class="{ active: demoSelectedNode === 'summarizer', current: demoSimulationStep === 4 && demoSelectedNode === 'summarizer' }">
+                    <div class="pipeline-node agent-node" @click="demoSelectedNode = 'summarizer'; demoInspectorTab = 'prompt_summarizer'">
+                      <div class="node-icon-wrap purple-glow">
+                        <span class="agent-number-badge">A1</span>
+                      </div>
+                      <span class="node-name">Summarizer Agent</span>
+                      <span class="node-sub">Prompt + Gemini</span>
+                    </div>
+                  </div>
+
+                  <!-- Node 5: Action Item Agent -->
+                  <div class="pipeline-node-container" :class="{ active: demoSelectedNode === 'actions', current: demoSimulationStep === 4 && demoSelectedNode === 'actions' }">
+                    <div class="pipeline-node agent-node" @click="demoSelectedNode = 'actions'; demoInspectorTab = 'prompt_action'">
+                      <div class="node-icon-wrap indigo-glow">
+                        <span class="agent-number-badge">A2</span>
+                      </div>
+                      <span class="node-name">Action Item Agent</span>
+                      <span class="node-sub">Prompt + Gemini</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Parallel Path Merge Arrows -->
+                <div class="split-arrows merge-arrows">
+                  <svg width="40" height="80" viewBox="0 0 40 80" fill="none" class="split-path-svg">
+                    <path d="M0 10 H10 Q20 10 20 30 V35 Q20 40 25 40 H40" stroke="currentColor" stroke-width="2" class="path-upper" :class="{ running: demoSimulationStep >= 4, completed: demoSimulationStep > 4 }"></path>
+                    <path d="M0 70 H10 Q20 70 20 50 V45 Q20 40 25 40 H40" stroke="currentColor" stroke-width="2" class="path-lower" :class="{ running: demoSimulationStep >= 4, completed: demoSimulationStep > 4 }"></path>
+                  </svg>
+                </div>
+
+                <!-- Node 6: WebSocket Streaming -->
+                <div class="pipeline-node-container" :class="{ active: demoSelectedNode === 'websocket', current: demoSimulationStep === 5 }">
+                  <div class="pipeline-node" @click="demoSelectedNode = 'websocket'; demoInspectorTab = 'fastapi'">
+                    <div class="node-icon-wrap">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                    </div>
+                    <span class="node-name">FastAPI WebSocket</span>
+                    <span class="node-sub">asyncio.Lock Serialize</span>
+                  </div>
+                </div>
+
+                <div class="flow-arrow" :class="{ running: demoSimulationStep >= 5, completed: demoSimulationStep > 5 }">
+                  <svg width="30" height="20" viewBox="0 0 30 20" fill="none"><path d="M0 10 H26 M20 4 L26 10 L20 16" stroke="currentColor" stroke-width="2"></path></svg>
+                </div>
+
+                <!-- Node 7: Web Frontend -->
+                <div class="pipeline-node-container" :class="{ active: demoSelectedNode === 'frontend', current: demoSimulationStep === 6 }">
+                  <div class="pipeline-node" @click="demoSelectedNode = 'frontend'; demoInspectorTab = 'pydantic'">
+                    <div class="node-icon-wrap">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                    </div>
+                    <span class="node-name">Web Frontend</span>
+                    <span class="node-sub">Vue incremental render</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Two Column Simulation Layout -->
+            <div class="demo-split-grid">
+              
+              <!-- Left Column: Live Simulation -->
+              <div class="demo-left-column">
+                
+                <!-- Mock WebSocket Message Terminal -->
+                <div class="demo-card terminal-card">
+                  <div class="terminal-card-header">
+                    <div class="terminal-dots">
+                      <span class="dot-red"></span>
+                      <span class="dot-yellow"></span>
+                      <span class="dot-green"></span>
+                    </div>
+                    <span class="terminal-title">WebSocket Messages Tunnel (/ws/summarize)</span>
+                    <span class="terminal-status-badge" :class="{ active: demoSimulationActive }">
+                      {{ demoSimulationActive ? 'Streaming' : 'Connected' }}
+                    </span>
+                  </div>
+                  <div class="terminal-card-body" id="demo-terminal-body">
+                    <div v-if="!demoLogs.length" class="terminal-empty-text">
+                      No logs. Click 'Start Simulation' above to stream messages.
+                    </div>
+                    <div v-for="(log, idx) in demoLogs" :key="idx" class="terminal-log-line">
+                      <span class="log-time">[{{ log.time }}]</span>
+                      <span class="log-message" :class="{
+                        'log-ws-recv': log.message.startsWith('WS RECV'),
+                        'log-ws-send': log.message.startsWith('WS SEND'),
+                        'log-ws-connect': log.message.startsWith('WS CONNECT')
+                      }">{{ log.message }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Mock UI rendering card -->
+                <div class="demo-card ui-preview-card">
+                  <div class="ui-preview-header">
+                    <span class="ui-preview-dot"></span>
+                    <span>Live UI Rendering Panel</span>
+                  </div>
+
+                  <div class="ui-preview-body">
+                    <!-- Meeting Title -->
+                    <div class="preview-meeting-title">
+                      <h3>Q3 Design Sync</h3>
+                      <span class="preview-meeting-date">May 22, 2026</span>
+                    </div>
+
+                    <!-- Transcript sample -->
+                    <div class="preview-transcript-container">
+                      <div class="preview-transcript-label">SOURCE TRANSCRIPT INGESTION:</div>
+                      <pre class="preview-transcript-text">{{ mockTranscript }}</pre>
+                    </div>
+
+                    <!-- Realtime Output fields -->
+                    <div class="preview-live-fields">
+                      <div class="preview-summary-box">
+                        <div class="preview-field-header">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                          <span>Incremental Summary:</span>
+                          <span v-if="demoSimulationStep === 5" class="preview-streaming-badge">Streaming</span>
+                        </div>
+                        <div class="preview-summary-text-box" :class="{ streaming: demoSimulationStep === 5 }">
+                          <p v-if="!demoSummaryText" class="preview-empty-desc">Waiting for Summarizer Agent chunk packages...</p>
+                          <p v-else>{{ demoSummaryText }}<span v-if="demoSimulationStep === 5" class="typing-cursor">▋</span></p>
+                        </div>
+                      </div>
+
+                      <div class="preview-actions-box">
+                        <div class="preview-field-header">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2 2V5a2 2 0 0 1 2-2h11"></path></svg>
+                          <span>Extracted Action Items:</span>
+                        </div>
+                        <div class="preview-actions-list">
+                          <div v-if="!demoActionsList.length" class="preview-empty-desc">Waiting for Action Item Agent output...</div>
+                          <div v-else v-for="(act, idx) in demoActionsList" :key="idx" class="preview-action-card">
+                            <div class="preview-action-top">
+                              <span class="act-name">{{ act.action }}</span>
+                              <span class="act-prio" :class="act.priority.toLowerCase()">{{ act.priority }}</span>
+                            </div>
+                            <div class="preview-action-meta">
+                              <span>Owner: <strong>{{ act.owner }}</strong></span>
+                              <span>Due: <strong>{{ act.due_date }}</strong></span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Column: Code & Prompt Inspector -->
+              <div class="demo-right-column">
+                <div class="demo-card inspector-card">
+                  <div class="inspector-header">
+                    <nav class="inspector-tabs">
+                      <button class="inspect-tab-btn" :class="{ active: demoInspectorTab === 'prompt_summarizer' }" @click="demoInspectorTab = 'prompt_summarizer'">
+                        Summarizer Prompt
+                      </button>
+                      <button class="inspect-tab-btn" :class="{ active: demoInspectorTab === 'prompt_action' }" @click="demoInspectorTab = 'prompt_action'">
+                        Action Item Prompt
+                      </button>
+                      <button class="inspect-tab-btn" :class="{ active: demoInspectorTab === 'pydantic' }" @click="demoInspectorTab = 'pydantic'">
+                        Pydantic Schemas
+                      </button>
+                      <button class="inspect-tab-btn" :class="{ active: demoInspectorTab === 'fastapi' }" @click="demoInspectorTab = 'fastapi'">
+                        FastAPI Websocket
+                      </button>
+                    </nav>
+                  </div>
+                  
+                  <div class="inspector-body">
+                    <!-- Summarizer Prompt -->
+                    <div v-if="demoInspectorTab === 'prompt_summarizer'" class="inspector-pane active">
+                      <div class="pane-file-info">
+                        <span>prompts/summarizer_prompt.md</span>
+                        <span class="badge-tag">AGENT 1 PROMPT</span>
+                      </div>
+                      <pre class="code-block-display"><code>You are a Meeting Summarizer Agent. Your job is to analyze meeting transcripts or notes and produce a structured summary.
+
+You must extract:
+1. Key discussion points (bullet list of main topics covered)
+2. Decisions made during the meeting (anything that was agreed upon or concluded)
+3. A concise summary (2-4 sentences capturing the essence of the meeting)
+4. Open questions (unresolved topics that need follow-up)
+5. Missing information (context that was referenced but not provided)
+
+Rules:
+- Be factual — only include what is explicitly stated in the transcript.
+- Keep the concise summary short and business-focused.
+
+Respond ONLY with valid JSON matching this schema:
+{
+  "key_discussion_points": ["..."],
+  "decisions_made": ["..."],
+  "concise_summary": "...",
+  "open_questions": ["..."],
+  "missing_information": ["..."]
+}</code></pre>
+                    </div>
+
+                    <!-- Action Prompt -->
+                    <div v-if="demoInspectorTab === 'prompt_action'" class="inspector-pane active">
+                      <div class="pane-file-info">
+                        <span>prompts/action_item_prompt.md</span>
+                        <span class="badge-tag">AGENT 2 PROMPT</span>
+                      </div>
+                      <pre class="code-block-display"><code>You are an Action Item Agent. Your job is to extract all action items from meeting transcripts or notes and produce a structured report.
+
+For each action item you must identify:
+1. The specific action to be taken (clear, verb-led description)
+2. The owner (person responsible) — use "Unassigned" if not mentioned
+3. The due date — use "Needs date" if not mentioned
+4. Status: "Clear" if the action is well-defined, "Needs clarification" if vague
+5. Priority: "High" / "Medium" / "Low" based on urgency cues
+
+Decision logic:
+- If owner is missing → owner = "Unassigned", add to flagged_issues
+- If deadline is missing → due_date = "Needs date", add to flagged_issues
+
+Respond ONLY with valid JSON matching this schema:
+{
+  "action_items": [
+    {
+      "action": "...",
+      "owner": "...",
+      "due_date": "...",
+      "status": "Clear | Needs clarification",
+      "priority": "High | Medium | Low"
+    }
+  ],
+  "flagged_issues": ["..."]
+}</code></pre>
+                    </div>
+
+                    <!-- Pydantic Schemas -->
+                    <div v-if="demoInspectorTab === 'pydantic'" class="inspector-pane active">
+                      <div class="pane-file-info">
+                        <span>schema/meeting_schema.py</span>
+                        <span class="badge-tag">PYDANTIC VALIDATION MODELS</span>
+                      </div>
+                      <pre class="code-block-display"><code>from enum import Enum
+from pydantic import BaseModel, Field
+
+class ActionStatus(str, Enum):
+    clear = "Clear"
+    needs_clarification = "Needs clarification"
+
+class ActionPriority(str, Enum):
+    high = "High"
+    medium = "Medium"
+    low = "Low"
+
+class ActionItem(BaseModel):
+    action: str = Field(..., description="Verb-led description")
+    owner: str = Field(default="Unassigned")
+    due_date: str = Field(default="Needs date")
+    status: ActionStatus = Field(default=ActionStatus.clear)
+    priority: ActionPriority = Field(default=ActionPriority.medium)
+
+class ActionItemReport(BaseModel):
+    action_items: list[ActionItem] = Field(default_factory=list)
+    flagged_issues: list[str] = Field(default_factory=list)
+
+class MeetingSummary(BaseModel):
+    concise_summary: str = Field(..., description="2-4 sentence overview")
+    key_discussion_points: list[str] = Field(default_factory=list)
+    decisions_made: list[str] = Field(default_factory=list)
+    open_questions: list[str] = Field(default_factory=list)
+    missing_information: list[str] = Field(default_factory=list)
+
+class MeetingWorkflowResult(BaseModel):
+    summary: MeetingSummary
+    action_report: ActionItemReport</code></pre>
+                    </div>
+
+                    <!-- FastAPI WS Code -->
+                    <div v-if="demoInspectorTab === 'fastapi'" class="inspector-pane active">
+                      <div class="pane-file-info">
+                        <span>backend/main.py</span>
+                        <span class="badge-tag">FASTAPI WEBSOCKET ENDPOINT</span>
+                      </div>
+                      <pre class="code-block-display"><code>@app.websocket("/ws/summarize")
+async def ws_summarize(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        # Lock prevents concurrent writes to WebSocket from parallel tasks
+        send_lock = asyncio.Lock()
+
+        async def send(payload: dict) -> None:
+            async with send_lock:
+                await websocket.send_json(payload)
+
+        async def run_and_stream(stream_fn, agent_type: str, transcript: str) -> dict:
+            accumulated = ""
+            async for chunk in stream_fn(client, transcript):
+                accumulated += chunk
+                await send({"type": f"{agent_type}_chunk", "chunk": chunk})
+            result = parse_json(accumulated)
+            await send({"type": f"{agent_type}_done", "data": result})
+            return result
+
+        # Run both agents concurrently
+        summary_data, actions_data = await asyncio.gather(
+            run_and_stream(stream_meeting_summarizer, "summary", transcript),
+            run_and_stream(stream_action_item_agent, "actions", transcript),
+        )
+
+        await send({"type": "complete"})
+    except WebSocketDisconnect:
+        pass</code></pre>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
           <!-- ── Overview ── -->
-          <div v-if="view === 'overview'" class="view-overview">
+          <div v-else-if="view === 'overview'" class="view-overview">
             <div class="view-header">
               <h1>Overview</h1>
               <p class="view-subtitle">All your projects and meetings at a glance.</p>
@@ -3191,6 +3753,616 @@ body.light-theme .chat-bubble-content td {
   cursor: not-allowed;
   box-shadow: none;
   transform: none;
+}
+
+/* ── System Demo Styles ── */
+.view-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
+.demo-card {
+  background: var(--bg-panel);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-main);
+  padding: 24px;
+  transition: var(--transition-smooth);
+}
+
+.pipeline-card {
+  overflow: hidden;
+}
+
+.panel-section-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.panel-section-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+/* Interactive Pipeline Graph */
+.pipeline-flow-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  overflow-x: auto;
+  padding: 20px 10px;
+  gap: 8px;
+  width: 100%;
+}
+
+.pipeline-node-container {
+  position: relative;
+  border-radius: var(--border-radius-md);
+  padding: 3px;
+  transition: var(--transition-smooth);
+  border: 2px solid transparent;
+}
+
+.pipeline-node-container.active {
+  border-color: var(--primary);
+  box-shadow: 0 0 14px var(--primary-glow);
+}
+
+.pipeline-node-container.current {
+  animation: nodePulse 1.5s infinite;
+}
+
+@keyframes nodePulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 hsla(var(--primary-hue), 90%, 65%, 0.4); }
+  70% { transform: scale(1.03); box-shadow: 0 0 0 8px hsla(var(--primary-hue), 90%, 65%, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 hsla(var(--primary-hue), 90%, 65%, 0); }
+}
+
+.pipeline-node {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  padding: 14px 18px;
+  min-width: 145px;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: var(--transition-smooth);
+}
+
+.pipeline-node:hover {
+  background: rgba(255, 255, 255, 0.03);
+  transform: translateY(-2px);
+  border-color: var(--primary);
+}
+
+.node-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--border-radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  position: relative;
+}
+
+.purple-glow {
+  color: #c084fc;
+  box-shadow: 0 0 10px rgba(192, 132, 252, 0.15);
+}
+
+.indigo-glow {
+  color: #818cf8;
+  box-shadow: 0 0 10px rgba(129, 140, 248, 0.15);
+}
+
+.agent-number-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.node-name {
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.node-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.flow-arrow {
+  color: var(--border-color);
+  transition: var(--transition-smooth);
+  flex-shrink: 0;
+}
+
+.flow-arrow.running {
+  color: var(--primary);
+  animation: arrowGlow 1.2s infinite;
+}
+
+.flow-arrow.completed {
+  color: var(--success);
+}
+
+@keyframes arrowGlow {
+  0% { opacity: 0.4; transform: translateX(0); }
+  50% { opacity: 1; transform: translateX(4px); }
+  100% { opacity: 0.4; transform: translateX(0); }
+}
+
+.split-arrows {
+  width: 40px;
+  height: 80px;
+  flex-shrink: 0;
+  color: var(--border-color);
+  display: flex;
+  align-items: center;
+}
+
+.split-path-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.split-path-svg path {
+  stroke: var(--border-color);
+  fill: none;
+  transition: var(--transition-smooth);
+}
+
+.split-path-svg path.running {
+  stroke: var(--primary);
+  stroke-dasharray: 6 3;
+  animation: pathFlow 1.2s linear infinite;
+}
+
+.split-path-svg path.completed {
+  stroke: var(--success);
+}
+
+@keyframes pathFlow {
+  from { stroke-dashoffset: 20; }
+  to { stroke-dashoffset: 0; }
+}
+
+.parallel-agents-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.agent-node {
+  min-width: 155px;
+}
+
+/* Header Button Demo */
+.demo-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-weight: 600;
+  border-radius: var(--border-radius-sm);
+  padding: 8px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: var(--transition-smooth);
+}
+
+.demo-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--primary);
+}
+
+.demo-btn.active {
+  background: var(--primary-glow-strong);
+  border-color: var(--primary);
+}
+
+.demo-pulse-dot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--success);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--success);
+  animation: pulse 1.8s infinite;
+}
+
+/* Two Column Demo Grid */
+.demo-split-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 24px;
+  align-items: stretch;
+}
+
+@media (max-width: 1024px) {
+  .demo-split-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.demo-left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Terminal Card */
+.terminal-card {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.06);
+  padding: 0;
+  overflow: hidden;
+  height: 250px;
+  display: flex;
+  flex-direction: column;
+}
+
+.terminal-card-header {
+  background: #1e293b;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.terminal-dots {
+  display: flex;
+  gap: 6px;
+  margin-right: 16px;
+}
+
+.terminal-dots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-red { background: #ef4444; }
+.dot-yellow { background: #eab308; }
+.dot-green { background: #22c55e; }
+
+.terminal-title {
+  font-family: monospace;
+  font-size: 11.5px;
+  color: #94a3b8;
+  flex: 1;
+}
+
+.terminal-status-badge {
+  font-family: monospace;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #94a3b8;
+}
+
+.terminal-status-badge.active {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.terminal-card-body {
+  padding: 16px;
+  overflow-y: auto;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 12px;
+  color: #cbd5e1;
+  flex: 1;
+  line-height: 1.5;
+}
+
+.terminal-empty-text {
+  color: #64748b;
+  text-align: center;
+  padding-top: 40px;
+  font-style: italic;
+}
+
+.terminal-log-line {
+  margin-bottom: 6px;
+  white-space: pre-wrap;
+}
+
+.log-time {
+  color: #64748b;
+  margin-right: 8px;
+}
+
+.log-message.log-ws-connect { color: #38bdf8; font-weight: 600; }
+.log-message.log-ws-send { color: #f472b6; }
+.log-message.log-ws-recv { color: #4ade80; }
+
+/* UI Preview Card */
+.ui-preview-card {
+  padding: 20px;
+}
+
+.ui-preview-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.ui-preview-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--primary);
+}
+
+.preview-meeting-title h3 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.preview-meeting-date {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.preview-transcript-container {
+  margin-top: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 12px;
+}
+
+.preview-transcript-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+
+.preview-transcript-text {
+  font-family: monospace;
+  font-size: 11.5px;
+  color: var(--text-main);
+  white-space: pre-wrap;
+  opacity: 0.85;
+}
+
+.preview-live-fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.preview-summary-box, .preview-actions-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preview-field-header {
+  display: flex;
+  align-items: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.preview-streaming-badge {
+  font-size: 9px;
+  background: var(--primary-glow-strong);
+  color: var(--primary);
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-left: 8px;
+  font-weight: 700;
+  animation: pulse 1.5s infinite;
+}
+
+.preview-summary-text-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 14px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  min-height: 80px;
+  color: var(--text-main);
+  transition: var(--transition-smooth);
+}
+
+.preview-summary-text-box.streaming {
+  border-color: var(--primary);
+  box-shadow: 0 0 10px var(--primary-glow);
+}
+
+.preview-empty-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.preview-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preview-action-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 12px 14px;
+}
+
+.preview-action-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.act-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.act-prio {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.act-prio.high { background: var(--danger-glow); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
+.act-prio.medium { background: var(--warning-glow); color: var(--warning); border: 1px solid rgba(234, 179, 8, 0.2); }
+.act-prio.low { background: var(--info-glow); color: var(--info); border: 1px solid rgba(56, 189, 248, 0.2); }
+
+.preview-action-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+/* Inspector Card */
+.inspector-card {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 500px;
+}
+
+.inspector-header {
+  background: rgba(0, 0, 0, 0.15);
+  border-bottom: 1px solid var(--border-color);
+  overflow-x: auto;
+}
+
+.inspector-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 12px 0 12px;
+}
+
+.inspect-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+  transition: var(--transition-smooth);
+}
+
+.inspect-tab-btn:hover {
+  color: var(--text-main);
+}
+
+.inspect-tab-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.inspector-body {
+  padding: 18px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.inspector-pane {
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+}
+
+.inspector-pane.active {
+  display: flex;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.pane-file-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pane-file-info span {
+  font-family: monospace;
+  font-size: 12.5px;
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.badge-tag {
+  font-size: 9px;
+  font-weight: 700;
+  background: var(--primary-glow);
+  color: var(--primary);
+  border: 1px solid var(--border-color);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.code-block-display {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  padding: 16px;
+  overflow-x: auto;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #e2e8f0;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.light-theme .code-block-display {
+  background: rgba(0, 0, 0, 0.03);
+  color: #1e293b;
+}
+
+.light-theme .terminal-card {
+  border-color: rgba(0, 0, 0, 0.08);
 }
 </style>
 
