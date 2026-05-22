@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { marked } from 'marked';
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -67,6 +67,7 @@ const chatInput = ref('');
 const isChatConnecting = ref(false);
 const isChatStreaming = ref(false);
 const chatScrollRef = ref(null);
+const chatTabScrollRef = ref(null);
 let chatSocket = null;
 let projectSocket = null;
 
@@ -586,13 +587,29 @@ const handleChatKey = (e) => {
 };
 
 const scrollChat = () => {
-  nextTick(() => { if (chatScrollRef.value) chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight; });
+  nextTick(() => {
+    if (chatScrollRef.value) chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight;
+    if (chatTabScrollRef.value) chatTabScrollRef.value.scrollTop = chatTabScrollRef.value.scrollHeight;
+  });
 };
 
 const renderMarkdown = (text) => {
   if (!text) return '';
   return marked.parse(text, { breaks: true });
 };
+
+// ── Watchers ──────────────────────────────────────────────────────────────────
+watch(activeTab, (newTab) => {
+  if (newTab === 'chat') {
+    chatMessages.value = [];
+    connectProjectChat(activeProjectId.value);
+  } else {
+    if (!isChatOpen.value && projectSocket) {
+      projectSocket.close();
+      projectSocket = null;
+    }
+  }
+});
 
 // ── Mount ─────────────────────────────────────────────────────────────────────
 onMounted(() => {
@@ -1195,6 +1212,7 @@ onMounted(() => {
                 <button class="tab-btn" :class="{ active: activeTab === 'actions' }" @click="activeTab = 'actions'">Action Items</button>
                 <button class="tab-btn" :class="{ active: activeTab === 'jira' }" @click="activeTab = 'jira'">Jira Tasks</button>
                 <button class="tab-btn" :class="{ active: activeTab === 'email' }" @click="activeTab = 'email'">Follow-up Email</button>
+                <button class="tab-btn" :class="{ active: activeTab === 'chat' }" @click="activeTab = 'chat'">Chat</button>
               </nav>
 
               <div class="tab-contents">
@@ -1410,6 +1428,77 @@ onMounted(() => {
                       ></textarea>
                     </div>
                   </template>
+                </div>
+
+                <!-- Chat tab -->
+                <div v-if="activeTab === 'chat'" class="tab-pane active chat-tab-pane">
+                  <div class="chat-tab-container">
+                    <div class="chat-tab-header">
+                      <div class="chat-tab-title">
+                        <span class="active-dot"></span>
+                        <h3>Project Meeting Assistant</h3>
+                      </div>
+                      <p class="chat-tab-subtitle">Ask questions about all meetings, decisions, and action items in this project.</p>
+                    </div>
+
+                    <!-- Suggested questions -->
+                    <div v-if="!chatMessages.length" class="chat-tab-suggestions">
+                      <p class="suggestions-label">Suggested Questions</p>
+                      <div class="chat-suggestions-grid">
+                        <button class="chat-suggestion-btn" @click="chatInput='What decisions have been made so far across all meetings?'; sendChat()">
+                          <span class="btn-icon">💡</span>
+                          <span class="btn-text">What decisions were made?</span>
+                        </button>
+                        <button class="chat-suggestion-btn" @click="chatInput='What are the open action items and their owners?'; sendChat()">
+                          <span class="btn-icon">📋</span>
+                          <span class="btn-text">Open action items?</span>
+                        </button>
+                        <button class="chat-suggestion-btn" @click="chatInput='Summarize the main themes of this project.'; sendChat()">
+                          <span class="btn-icon">🎯</span>
+                          <span class="btn-text">Summarize project themes</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Message history -->
+                    <div class="chat-tab-messages" ref="chatTabScrollRef">
+                      <div class="chat-bubble-wrap assistant" v-if="!chatMessages.length">
+                        <div class="chat-bubble">
+                          <span class="msg-role-label agent-label">Project Agent</span>
+                          <div class="chat-bubble-content">
+                            <p>Hi! I'm your project assistant. I have access to all the meetings and transcripts in this project. Ask me anything!</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div v-for="(msg, i) in chatMessages" :key="i"
+                        class="chat-bubble-wrap" :class="msg.role">
+                        <div class="chat-bubble" :class="{ streaming: msg.streaming }">
+                          <span class="msg-role-label" :class="{ 'agent-label': msg.role === 'assistant' }">
+                            {{ msg.role === 'user' ? 'You' : 'Project Agent' }}
+                          </span>
+                          <div class="chat-bubble-content" v-html="renderMarkdown(msg.text)"></div>
+                          <span v-if="msg.streaming" class="typing-cursor">▋</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Input row -->
+                    <div class="chat-tab-input-form">
+                      <textarea class="chat-tab-textarea" v-model="chatInput" rows="1"
+                        placeholder="Ask a question about this project..."
+                        :disabled="isChatStreaming"
+                        @keydown="handleChatKey"></textarea>
+                      <button class="chat-tab-send-btn"
+                        :disabled="isChatStreaming || !chatInput.trim()"
+                        @click="sendChat">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <line x1="22" y1="2" x2="11" y2="13"></line>
+                          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2447,7 +2536,8 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
-.chat-bubble-wrap.model {
+.chat-bubble-wrap.model,
+.chat-bubble-wrap.assistant {
   justify-content: flex-start;
 }
 
@@ -2469,7 +2559,8 @@ onMounted(() => {
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
 }
 
-.chat-bubble-wrap.model .chat-bubble {
+.chat-bubble-wrap.model .chat-bubble,
+.chat-bubble-wrap.assistant .chat-bubble {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.06);
   color: #e5e7eb;
@@ -2483,8 +2574,9 @@ onMounted(() => {
   margin-top: 4px;
 }
 
-.chat-bubble-wrap.model .chat-timestamp {
-  color: #9ca3af;
+.chat-bubble-wrap.model .chat-timestamp,
+.chat-bubble-wrap.assistant .chat-timestamp {
+  text-align: left;
 }
 
 .chat-bubble-content {
@@ -2666,13 +2758,15 @@ body.light-theme .suggestion-chip:hover {
   border-color: rgba(99, 102, 241, 0.3);
 }
 
-body.light-theme .chat-bubble-wrap.model .chat-bubble {
+body.light-theme .chat-bubble-wrap.model .chat-bubble,
+body.light-theme .chat-bubble-wrap.assistant .chat-bubble {
   background: rgba(0, 0, 0, 0.035);
   border-color: rgba(0, 0, 0, 0.05);
   color: #334155;
 }
 
-body.light-theme .chat-bubble-wrap.model .chat-timestamp {
+body.light-theme .chat-bubble-wrap.model .chat-timestamp,
+body.light-theme .chat-bubble-wrap.assistant .chat-timestamp {
   color: #64748b;
 }
 
@@ -2877,6 +2971,171 @@ body.light-theme .chat-bubble-content td {
 
 @keyframes spinLarge {
   to { transform: rotate(360deg); }
+}
+
+/* ── Chat Tab Styles ── */
+.chat-tab-pane {
+  gap: 0 !important;
+}
+
+.chat-tab-container {
+  display: flex;
+  flex-direction: column;
+  height: 580px;
+  background: var(--bg-panel, rgba(30, 41, 59, 0.4));
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
+}
+
+.chat-tab-header {
+  padding: 16px 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.chat-tab-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.chat-tab-title h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.chat-tab-subtitle {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.chat-tab-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.chat-tab-suggestions {
+  padding: 16px 20px;
+  background: rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.chat-tab-suggestions .suggestions-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.chat-suggestions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.chat-suggestion-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-main);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.chat-suggestion-btn:hover {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.chat-suggestion-btn .btn-icon {
+  font-size: 16px;
+}
+
+.chat-suggestion-btn .btn-text {
+  font-weight: 500;
+}
+
+.chat-tab-input-form {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 16px 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.chat-tab-textarea {
+  flex: 1;
+  background: var(--bg-input, rgba(0, 0, 0, 0.2));
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  color: var(--text-main);
+  padding: 12px 16px;
+  font-size: 13.5px;
+  resize: none;
+  line-height: 1.4;
+  outline: none;
+  transition: var(--transition-smooth);
+}
+
+.chat-tab-textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 8px var(--primary-glow);
+}
+
+.chat-tab-send-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--border-radius-md);
+  background: var(--primary);
+  border: none;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  flex-shrink: 0;
+}
+
+.chat-tab-send-btn:hover {
+  background: hsl(244, 90%, 65%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+.chat-tab-send-btn:disabled {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 </style>
 
