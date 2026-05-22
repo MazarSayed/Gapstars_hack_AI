@@ -167,107 +167,143 @@ const runWorkflow = async () => {
   agentActionActive.value = false;
   agentFollowupActive.value = false;
 
-  // Determine WebSocket endpoint
+  // Determine WebSocket endpoint candidates
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = window.location.host;
-  const wsHost = host.includes('localhost:5173') || host.includes('127.0.0.1:5173')
-    ? 'localhost:8000'
-    : host;
-  const wsUrl = `${wsProtocol}//${wsHost}/ws/summarize`;
-
-  let socket;
-  try {
-    socket = new WebSocket(wsUrl);
-  } catch (err) {
-    console.error(err);
-    alert('Failed to establish WebSocket connection.');
-    viewState.value = 'empty';
-    isAnalyzing.value = false;
-    return;
+  
+  let wsUrls = [];
+  if (host.includes('localhost') || host.includes('127.0.0.1')) {
+    // Try standard port 8000, then fallback to 8001 (to bypass PHP conflict)
+    wsUrls.push(`${wsProtocol}//localhost:8000/ws/summarize`);
+    wsUrls.push(`${wsProtocol}//localhost:8001/ws/summarize`);
+    wsUrls.push(`${wsProtocol}//127.0.0.1:8000/ws/summarize`);
+    wsUrls.push(`${wsProtocol}//127.0.0.1:8001/ws/summarize`);
+  } else {
+    wsUrls.push(`${wsProtocol}//${host}/ws/summarize`);
   }
 
-  socket.onopen = () => {
-    statusMessage.value = 'Connected. Triggering agents...';
-    const payload = {
-      transcript: text,
-      language: language.value
-    };
-    socket.send(JSON.stringify(payload));
-  };
+  const establishConnection = (urlIndex) => {
+    if (urlIndex >= wsUrls.length) {
+      alert(`WebSocket connection failed.\n\nReason: A port conflict was detected on port 8000 (likely due to a local PHP built-in server or another service listening on localhost:8000).\n\nSolutions:\n1. Run the FastAPI server on port 8001 instead:\n   uv run uvicorn main:app --port 8001\n\n2. Or, terminate the conflicting PHP process on port 8000:\n   kill -9 <PHP_PID>\n\n(The frontend is configured to automatically try both port 8000 and 8001!)`);
+      viewState.value = 'empty';
+      isAnalyzing.value = false;
+      return;
+    }
 
-  socket.onmessage = (eventMsg) => {
+    const currentUrl = wsUrls[urlIndex];
+    statusMessage.value = `Connecting to workflow agents (${urlIndex + 1}/${wsUrls.length})...`;
+    console.log(`Connecting to WebSocket: ${currentUrl}`);
+
+    let socket;
     try {
-      const data = JSON.parse(eventMsg.data);
+      socket = new WebSocket(currentUrl);
+    } catch (err) {
+      console.error(`Failed to construct WebSocket for ${currentUrl}:`, err);
+      establishConnection(urlIndex + 1);
+      return;
+    }
 
-      if (data.type === 'status') {
-        statusMessage.value = data.message;
-        if (data.message.toLowerCase().includes('started')) {
-          loadingStep.value = 'agents';
+    // Set a connection timeout to detect hanging ports (like PHP ignoring WS connections)
+    const connectionTimeout = setTimeout(() => {
+      if (socket.readyState !== WebSocket.OPEN) {
+        console.warn(`Connection timeout for ${currentUrl}. Trying next...`);
+        socket.close();
+        establishConnection(urlIndex + 1);
+      }
+    }, 2000);
+
+    socket.onopen = () => {
+      clearTimeout(connectionTimeout);
+      statusMessage.value = 'Connected. Triggering agents...';
+      const payload = {
+        transcript: text,
+        language: language.value
+      };
+      socket.send(JSON.stringify(payload));
+    };
+
+    socket.onmessage = (eventMsg) => {
+      try {
+        const data = JSON.parse(eventMsg.data);
+
+        if (data.type === 'status') {
+          statusMessage.value = data.message;
+          if (data.message.toLowerCase().includes('started')) {
+            loadingStep.value = 'agents';
+            agentSummarizerActive.value = true;
+            agentActionActive.value = true;
+          } else if (data.message.toLowerCase().includes('translating')) {
+            loadingStep.value = 'translate';
+          }
+        } 
+        
+        else if (data.type === 'summary_chunk') {
+          summaryStream.value += data.chunk;
           agentSummarizerActive.value = true;
+          scrollConsole(summaryConsoleRef);
+        } 
+        
+        else if (data.type === 'actions_chunk') {
+          actionsStream.value += data.chunk;
           agentActionActive.value = true;
-        } else if (data.message.toLowerCase().includes('translating')) {
-          loadingStep.value = 'translate';
-        }
-      } 
-      
-      else if (data.type === 'summary_chunk') {
-        summaryStream.value += data.chunk;
-        agentSummarizerActive.value = true;
-        scrollConsole(summaryConsoleRef);
-      } 
-      
-      else if (data.type === 'actions_chunk') {
-        actionsStream.value += data.chunk;
-        agentActionActive.value = true;
-        scrollConsole(actionsConsoleRef);
-      } 
-      
-      else if (data.type === 'summary_done') {
-        summaryResult.value = data.data;
-      } 
-      
-      else if (data.type === 'actions_done') {
-        actionReportResult.value = data.data;
-      } 
-      
-      else if (data.type === 'complete') {
-        statusMessage.value = 'Analysis complete. Drafting reports...';
-        loadingStep.value = 'followup';
-        agentFollowupActive.value = true;
+          scrollConsole(actionsConsoleRef);
+        } 
+        
+        else if (data.type === 'summary_done') {
+          summaryResult.value = data.data;
+        } 
+        
+        else if (data.type === 'actions_done') {
+          actionReportResult.value = data.data;
+        } 
+        
+        else if (data.type === 'complete') {
+          statusMessage.value = 'Analysis complete. Drafting reports...';
+          loadingStep.value = 'followup';
+          agentFollowupActive.value = true;
 
-        if (summaryResult.value && actionReportResult.value) {
-          followupResult.value = generateClientSideFollowup(summaryResult.value, actionReportResult.value);
-        }
+          if (summaryResult.value && actionReportResult.value) {
+            followupResult.value = generateClientSideFollowup(summaryResult.value, actionReportResult.value);
+          }
 
-        setTimeout(() => {
-          loadingStep.value = 'done';
-          viewState.value = 'dashboard';
+          setTimeout(() => {
+            loadingStep.value = 'done';
+            viewState.value = 'dashboard';
+            isAnalyzing.value = false;
+            socket.close();
+          }, 800);
+        } 
+        
+        else if (data.type === 'error') {
+          alert(`Agent Error: ${data.message}`);
+          viewState.value = 'empty';
           isAnalyzing.value = false;
           socket.close();
-        }, 800);
-      } 
-      
-      else if (data.type === 'error') {
-        alert(`Agent Error: ${data.message}`);
+        }
+      } catch (err) {
+        console.error('Failed to parse WebSocket event:', err);
+      }
+    };
+
+    socket.onerror = (err) => {
+      clearTimeout(connectionTimeout);
+      console.warn(`WebSocket error on ${currentUrl}:`, err);
+      if (socket.readyState !== WebSocket.OPEN) {
+        socket.close();
+        establishConnection(urlIndex + 1);
+      } else {
+        alert('Workflow connection was interrupted.');
         viewState.value = 'empty';
         isAnalyzing.value = false;
-        socket.close();
       }
-    } catch (err) {
-      console.error('Failed to parse WebSocket event:', err);
-    }
+    };
+
+    socket.onclose = () => {
+      console.log(`Workflow socket closed for ${currentUrl}.`);
+    };
   };
 
-  socket.onerror = (err) => {
-    console.error('WebSocket error event:', err);
-    alert('Workflow connection was interrupted.');
-    viewState.value = 'empty';
-    isAnalyzing.value = false;
-  };
-
-  socket.onclose = () => {
-    console.log('Workflow socket closed.');
-  };
+  establishConnection(0);
 };
 
 const scrollConsole = (refVar) => {
