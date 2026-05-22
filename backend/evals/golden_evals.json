@@ -1,0 +1,109 @@
+[
+  {
+    "id": "meeting_001",
+    "source": "transcript_1.txt",
+    "meeting_title": "Impromptu Microsoft Teams Meeting - February 06",
+    "expected": {
+      "summary": {
+        "concise_summary": "The team reviewed progress on LinkedIn URL normalization for the lead scraping pipeline, where a new function strips query parameters to produce clean company URLs. The main discussion focused on defining a cost-effective enrichment strategy using Apollo's verification flags to filter and rank decision-makers by role relevance before fetching full contact details. The team agreed on a human-in-the-loop workflow using a Streamlit UI or Google Sheet for manual approval of leads and email drafts before outreach. Next steps include validating Apollo vs Lusha across 20–25 companies, building the review UI, implementing hyper-personalized email generation, and investigating SMTP bounce tracking.",
+        "key_discussion_points": [
+          "LinkedIn URL normalization: stripping query parameters (e.g., ?trk=...) from scraped URLs to produce clean, unique company identifiers",
+          "Using LinkedIn company ID instead of company name as the primary enrichment API input to avoid name-uniqueness issues",
+          "Cost-effective enrichment strategy: filtering Apollo results with email_status and has_phone flags before fetching full contact records",
+          "Decision-maker identification: ranking candidates by role relevance using an LLM, with web search to validate real-world availability",
+          "Human-in-the-loop UI: Streamlit app or Google Sheet for daily lead review and email draft approval before sending",
+          "Hyper-personalized email generation and multi-touch follow-up cadence",
+          "SMTP bounce handling and email delivery tracking feasibility",
+          "Architecture: building as individual functions first, then integrating into an agentic workflow"
+        ],
+        "decisions_made": [
+          "Use the LinkedIn company ID (not company name) as the primary lookup key for enrichment APIs to ensure uniqueness",
+          "Filter Apollo enrichment results using email_status (verified) and has_phone flags before fetching full contact details to conserve API credits",
+          "Rank filtered contacts by role relevance and fetch full details only for the top 1–3 highest-confidence contacts",
+          "Skip cross-API email verification for now; accept the risk to move forward without dual-source validation",
+          "Build a Streamlit UI (or Google Sheet as fallback) for human review and approval of leads and email drafts",
+          "Build V1 focused on scraping, enrichment, and the review UI; defer email tracking and bounce handling to V2"
+        ],
+        "open_questions": [
+          "Which enrichment API performs better for this use case: Apollo or Lusha?",
+          "Is it feasible to programmatically track SMTP bounce / undelivered responses from the mail server?",
+          "How should email open and click tracking be implemented via deep links?",
+          "What is the exact role-relevance ranking logic for identifying the right decision-maker across different job categories?",
+          "How should the multi-touch follow-up email cadence be structured (timing, content evolution, call-to-action)?",
+          "What are the specific target industries, geographies, and role parameters for the outreach campaign?"
+        ],
+        "missing_information": [
+          "No specific deadline was agreed upon for completing the enrichment validation and UI",
+          "The content strategy referenced by Dinuke has not been defined or shared",
+          "The exact role hierarchy logic for decision-maker selection (e.g., CTO vs Head of AI vs Head of Technology) was discussed but not formally decided",
+          "The Lusha API capabilities and pricing were not reviewed in this meeting"
+        ]
+      },
+      "action_report": {
+        "action_items": [
+          {
+            "action": "Add web search capability to decision-maker ranking pipeline and integrate results with the LLM-based ranking logic",
+            "owner": "Mohamed Ilham",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Build enrichment validation: filter Apollo results by email_status and has_phone, rank by role relevance, fetch top 3 contacts, and document results for 20–25 companies",
+            "owner": "Mohamed Ilham",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Build Streamlit UI with sections for pre-configuration, daily leads table, human approval workflow, email send trigger, status/history tracking, and hyper-personalized email preview",
+            "owner": "Mohamed Ilham",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Define target roles and outreach parameters; coordinate with Ilham on Streamlit UI design and workflow",
+            "owner": "Dinuke",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "Medium"
+          },
+          {
+            "action": "Investigate SMTP bounce and delivery failure tracking feasibility and report findings to Dinuke",
+            "owner": "Mohamed Ilham",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "Medium"
+          },
+          {
+            "action": "Compare Apollo vs Lusha enrichment APIs on 20–25 test companies and document results to support provider selection decision",
+            "owner": "Mohamed Ilham",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "High"
+          },
+          {
+            "action": "Support Ilham on enrichment validation and Streamlit UI development",
+            "owner": "Mazar Sayed",
+            "due_date": "Needs date",
+            "status": "Clear",
+            "priority": "Medium"
+          },
+          {
+            "action": "Collaborate with Heshan and Naufa on content strategy to improve email response rates and define multi-touch follow-up cadence",
+            "owner": "Mohamed Ilham",
+            "due_date": "Needs date",
+            "status": "Needs clarification",
+            "priority": "Low"
+          }
+        ],
+        "flagged_issues": [
+          "All action items are missing specific due dates — target completion was described as 'next week' but no calendar date was confirmed",
+          "Action: 'Collaborate on content strategy' is vague — the specific deliverable and owner split between Ilham, Heshan, and Naufa was not clarified",
+          "Action: 'Add web search to decision-maker ranking' — it is unclear whether Ilham should implement this independently or wait for Mazar's instructions"
+        ]
+      }
+    }
+  }
+]

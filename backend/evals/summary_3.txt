@@ -1,0 +1,92 @@
+Impromptu Microsoft Teams Meeting - January 12
+VIEW RECORDING: https://fathom.video/share/fZEtEZozxwuSAxxox9bsG5FL6mQJZdbq
+Meeting Purpose
+
+Clarify career trajectory logic and define platform architecture.
+
+Key Takeaways
+
+  - Career Trajectory UI: Overlapping roles will be displayed with the longest-duration experience as primary, using visual offsets and a dynamic timeline to show concurrency.
+  - Experience Calculation: Total Experience is the span from first job start to last job end (minus breaks >6 months). Industry Experience is the sum of time in each industry, calculated separately.
+  - Data Source Strategy: Shift from unreliable LinkedIn scraping to AI (Grok) for company data (industry, summary) to ensure accuracy, especially for senior profiles and startups.
+  - SaaS Architecture: Implement login/authentication now to enable a multi-client SaaS model with shared core data and client-specific summaries, avoiding a costly future refactor.
+
+Topics
+
+Career Trajectory UI & Logic
+
+  - Problem: The UI fails to represent parallel work experiences, a common scenario for senior candidates.
+  - Solution: A new UI and data logic will be implemented.
+      - Primary Experience: For any overlapping period, the longest-duration role becomes the primary display.
+      - Visual Hierarchy:
+          - Primary role card → Aligned to the left.
+          - Overlapping role cards → Offset to the right to visually signal concurrency.
+      - Dynamic Timeline: Clicking a role card highlights its specific duration on the timeline in blue.
+      - Ordering:
+          - Current roles ("present") → Ordered by total years at the company.
+          - Past roles → Ordered chronologically by start date.
+  - Bug Fix: The missing "from-to" dates for current roles will be fixed in the next release.
+
+Experience Calculation Logic
+
+  - Total Years of Experience:
+      - Calculated as the span from the first job's start date to the last job's end date (or present).
+      - Breaks >6 months → Deducted from the total.
+      - Breaks <6 months → Ignored.
+  - Years of Industry Experience:
+      - Calculated separately by summing time in each industry from individual jobs.
+      - Rationale: This accounts for experience across multiple industries, so the total will not necessarily match the Total Years of Experience.
+  - UI Feedback:
+      - Mazar: Unlink the auto-update between Total and Industry Experience fields.
+      - Swarnaka: Start all industry experience rings from the 12 o'clock position for visual consistency.
+
+Data Source & Summarization Strategy
+
+  - Problem: LinkedIn data is unreliable for company industry and information, especially for senior profiles and startups.
+  - Solution: Use AI (Grok) for company data enrichment.
+      - Process: Scrape only the company name from LinkedIn; use Grok to find and summarize company information (industry, description).
+      - Rationale: Grok pulls from a broader range of sources, providing more accurate and detailed data.
+  - Candidate Title: The title displayed next to the candidate's picture will be the title from the primary role (the longest-duration role) on the career trajectory.
+
+SaaS Architecture & Authentication
+
+  - Decision: Implement login/authentication now, before the backend becomes more complex.
+  - Rationale:
+      - Enables SaaS Model: Supports a multi-client platform with separate, secure databases.
+      - Prevents Costly Refactor: Building authentication later would require a major data structure overhaul.
+      - Data Security: Ensures compliance with standards like GDPR.
+  - Data Structure: The architecture will support two data types:
+      - Core Data: Shared across clients (e.g., raw LinkedIn profiles) to reduce enrichment costs.
+      - Summarized Data: Client-specific (e.g., AI-generated career summaries).
+  - Initial Accounts: Create two accounts for testing: one for Celestial and one for HNC.
+
+Process Improvement: Wireframe Reviews
+
+  - Goal: Improve development efficiency and reduce rework.
+  - New Process: Before each sprint, hold a dedicated Q&A session with Lulu and Oshady to review wireframes and clarify requirements.
+  - Timing: The team will decide if this review happens before or after sprint planning.
+
+Next Steps
+
+  - Swarnaka:
+      - Fix the missing "from-to" date bug for current roles.
+      - Implement the new career trajectory UI logic (primary role, visual offsets, dynamic timeline).
+      - Unlink the auto-update between Total and Industry Experience fields.
+      - Start all industry experience rings from the 12 o'clock position.
+  - Mazar:
+      - Integrate Grok for company data enrichment (industry, summary).
+      - Implement the new logic for calculating Total and Industry Experience.
+      - Assign the candidate's primary role title to the profile header.
+  - Dulni:
+      - Create a feature ticket for login/authentication, assigning tasks to Mazar, Nipuna, and Oshady.
+      - Schedule the wireframe review session with Lulu and Oshady before the next sprint.
+  - Lulu:
+      - Investigate the current AWS account to ensure Metis is isolated from other Celestial projects.
+Action Items
+  - Implement career trajectory UI: longest-first, indented overlaps, blue highlights, timeline start=12, remove Education/Skills Regenerate - WATCH (5 secs): https://fathom.video/share/fZEtEZozxwuSAxxox9bsG5FL6mQJZdbq?timestamp=758.9999
+  - Implement experience logic: Total YOE first-start→last-end; deduct >6mo gaps; separate industry YOE; use top role title - WATCH (5 secs): https://fathom.video/share/fZEtEZozxwuSAxxox9bsG5FL6mQJZdbq?timestamp=1172.9999
+  - Build industry standardization: create standard list; replace LinkedIn w/ AI; assign Shield Bio to Biotech - WATCH (5 secs): https://fathom.video/share/fZEtEZozxwuSAxxox9bsG5FL6mQJZdbq?timestamp=1680.9999
+  - Create auth feature; add OSHAD; implement SaaS multi-client; create Celestial/HNC test accounts; research GDPR/HIPAA - WATCH (5 secs): https://fathom.video/share/fZEtEZozxwuSAxxox9bsG5FL6mQJZdbq?timestamp=3037.9999
+  - Create auth feature; add OSHAD; implement SaaS multi-client; create Celestial/HNC test accounts; research GDPR/HIPAA - WATCH (5 secs): https://fathom.video/share/fZEtEZozxwuSAxxox9bsG5FL6mQJZdbq?timestamp=3037.9999
+  - Create auth feature; add OSHAD; implement SaaS multi-client; create Celestial/HNC test accounts; research GDPR/HIPAA - WATCH (5 secs): https://fathom.video/share/fZEtEZozxwuSAxxox9bsG5FL6mQJZdbq?timestamp=3037.9999
+  - Schedule mid-sprint wireframe Q&A w/ Lulu + OSHAD - WATCH (5 secs): https://fathom.video/share/fZEtEZozxwuSAxxox9bsG5FL6mQJZdbq?timestamp=3883.9999

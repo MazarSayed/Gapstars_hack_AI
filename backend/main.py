@@ -6,6 +6,7 @@ from google import genai
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from agents.meeting_summarizer import stream_meeting_summarizer
 from agents.action_item_agent import stream_action_item_agent
+from agents.followup_agent import stream_followup_agent
 from agents.translator_agent import translate_transcript
 
 
@@ -90,18 +91,22 @@ async def ws_summarize(websocket: WebSocket):
             async with send_lock:
                 await websocket.send_json(payload)
 
-        async def run_and_stream(stream_fn, agent_type: str) -> None:
+        async def run_and_stream(stream_fn, agent_type: str, *args) -> dict:
             accumulated = ""
-            async for chunk in stream_fn(client, transcript):
+            async for chunk in stream_fn(client, *args):
                 accumulated += chunk
                 await send({"type": f"{agent_type}_chunk", "chunk": chunk})
             result = _parse_json(accumulated)
             await send({"type": f"{agent_type}_done", "data": result})
+            return result
 
-        await asyncio.gather(
-            run_and_stream(stream_meeting_summarizer, "summary"),
-            run_and_stream(stream_action_item_agent, "actions"),
+        summary_data, actions_data = await asyncio.gather(
+            run_and_stream(stream_meeting_summarizer, "summary", transcript),
+            run_and_stream(stream_action_item_agent, "actions", transcript),
         )
+
+        await send({"type": "status", "message": "Drafting follow-up email and Jira tasks..."})
+        await run_and_stream(stream_followup_agent, "followup", summary_data, actions_data)
 
         await websocket.send_json({"type": "complete"})
 

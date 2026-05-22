@@ -22,6 +22,7 @@ const agentFollowupActive = ref(false);
 // Live Stream Feeds
 const summaryStream = ref('');
 const actionsStream = ref('');
+const followupStream = ref('');
 const statusMessage = ref('');
 const summaryConsoleRef = ref(null);
 const actionsConsoleRef = ref(null);
@@ -30,6 +31,7 @@ const actionsConsoleRef = ref(null);
 const isStreamingActive = ref(false);
 let summaryQueue = [];
 let actionsQueue = [];
+let followupQueue = [];
 
 // Lenient partial JSON parser to allow progressive streaming render of dashboard
 const parsePartialJSON = (jsonStr) => {
@@ -104,14 +106,9 @@ const processSummaryQueue = () => {
       }
     }
     
-    // Parse the partial JSON and update the reactive state
     const parsed = parsePartialJSON(summaryStream.value);
     if (parsed) {
       summaryResult.value = parsed;
-      // Live update follow-up email and Jira tasks if actions are also available
-      if (actionReportResult.value) {
-        followupResult.value = generateClientSideFollowup(parsed, actionReportResult.value);
-      }
     }
     
     scrollConsole(summaryConsoleRef);
@@ -127,17 +124,23 @@ const processActionsQueue = () => {
       }
     }
     
-    // Parse the partial JSON and update the reactive state
     const parsed = parsePartialJSON(actionsStream.value);
     if (parsed) {
       actionReportResult.value = parsed;
-      // Live update follow-up email and Jira tasks if summary is also available
-      if (summaryResult.value) {
-        followupResult.value = generateClientSideFollowup(summaryResult.value, parsed);
-      }
     }
     
     scrollConsole(actionsConsoleRef);
+  }
+};
+
+const processFollowupQueue = () => {
+  if (followupQueue.length > 0) {
+    const batchSize = Math.max(1, Math.floor(followupQueue.length / 12));
+    for (let i = 0; i < batchSize; i++) {
+      if (followupQueue.length > 0) followupStream.value += followupQueue.shift();
+    }
+    const parsed = parsePartialJSON(followupStream.value);
+    if (parsed) followupResult.value = parsed;
   }
 };
 
@@ -145,6 +148,7 @@ const tickStreamQueues = () => {
   if (!isStreamingActive.value) return;
   processSummaryQueue();
   processActionsQueue();
+  processFollowupQueue();
   requestAnimationFrame(tickStreamQueues);
 };
 
@@ -285,8 +289,10 @@ const runWorkflow = async () => {
   isStreamingActive.value = true;
   summaryQueue = [];
   actionsQueue = [];
+  followupQueue = [];
   summaryStream.value = '';
   actionsStream.value = '';
+  followupStream.value = '';
   requestAnimationFrame(tickStreamQueues);
   
   agentSummarizerActive.value = false;
@@ -384,34 +390,29 @@ const runWorkflow = async () => {
         
         else if (data.type === 'actions_done') {
           actionReportResult.value = data.data;
-        } 
-        
+        }
+
+        else if (data.type === 'followup_chunk') {
+          if (data.chunk) followupQueue.push(...data.chunk.split(''));
+          agentFollowupActive.value = true;
+          loadingStep.value = 'followup';
+        }
+
+        else if (data.type === 'followup_done') {
+          followupResult.value = data.data;
+        }
+
         else if (data.type === 'complete') {
           // Flush any remaining characters immediately
           isStreamingActive.value = false;
-          if (summaryQueue.length > 0) {
-            summaryStream.value += summaryQueue.join('');
-            summaryQueue = [];
-          }
-          if (actionsQueue.length > 0) {
-            actionsStream.value += actionsQueue.join('');
-            actionsQueue = [];
-          }
+          if (summaryQueue.length > 0) { summaryStream.value += summaryQueue.join(''); summaryQueue = []; }
+          if (actionsQueue.length > 0) { actionsStream.value += actionsQueue.join(''); actionsQueue = []; }
+          if (followupQueue.length > 0) { followupStream.value += followupQueue.join(''); followupQueue = []; }
 
-          statusMessage.value = 'Analysis complete. Drafting reports...';
-          loadingStep.value = 'followup';
-          agentFollowupActive.value = true;
-
-          if (summaryResult.value && actionReportResult.value) {
-            followupResult.value = generateClientSideFollowup(summaryResult.value, actionReportResult.value);
-          }
-
-          setTimeout(() => {
-            loadingStep.value = 'done';
-            viewState.value = 'dashboard';
-            isAnalyzing.value = false;
-            socket.close();
-          }, 800);
+          loadingStep.value = 'done';
+          viewState.value = 'dashboard';
+          isAnalyzing.value = false;
+          socket.close();
         } 
         
         else if (data.type === 'error') {
@@ -484,87 +485,6 @@ const copyAllJira = () => {
   triggerToast('All Jira tasks copied as Markdown!');
 };
 
-// --- Fallback Follow-up Generator ---
-const generateClientSideFollowup = (summary, report) => {
-  const dateString = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const emailSubject = `Follow-up: Meeting Alignment & Action Items (${dateString})`;
-
-  let emailBody = `Dear Team,\n\nHere is a summary of the decisions made and the outstanding tasks from our recent check-in. Please review the items below and align on your respective deliverables.\n\n`;
-  emailBody += `### Summary\n${summary.concise_summary}\n\n`;
-
-  if (summary.decisions_made && summary.decisions_made.length > 0) {
-    emailBody += `### Key Decisions\n`;
-    summary.decisions_made.forEach(dec => {
-      emailBody += `- ✓ ${dec}\n`;
-    });
-    emailBody += `\n`;
-  }
-
-  if (report.action_items && report.action_items.length > 0) {
-    emailBody += `### Action Items\n`;
-    emailBody += `| Action | Owner | Due Date |\n`;
-    emailBody += `| :--- | :--- | :--- |\n`;
-    report.action_items.forEach(item => {
-      emailBody += `| ${item.action} | **${item.owner}** | ${item.due_date} |\n`;
-    });
-    emailBody += `\n`;
-  }
-
-  if (summary.open_questions && summary.open_questions.length > 0) {
-    emailBody += `### Open Questions / Gaps\n`;
-    summary.open_questions.forEach(q => {
-      emailBody += `- ? ${q}\n`;
-    });
-    emailBody += `\n`;
-  }
-
-  emailBody += `Please reach out if you have questions or require further clarification.\n\nBest regards,\n[Your Name]`;
-
-  const jiraTasks = (report.action_items || []).map(item => {
-    let comp = 'General';
-    const ownerLower = item.owner.toLowerCase();
-    const actionLower = item.action.toLowerCase();
-
-    if (ownerLower.includes('james') || ownerLower.includes('mike') || actionLower.includes('auth') || actionLower.includes('api') || actionLower.includes('code') || actionLower.includes('refactor') || actionLower.includes('server') || actionLower.includes('it')) {
-      comp = 'Engineering';
-    } else if (ownerLower.includes('priya') || actionLower.includes('design') || actionLower.includes('screen') || actionLower.includes('ui') || actionLower.includes('ux')) {
-      comp = 'Design';
-    } else if (ownerLower.includes('tom') || actionLower.includes('marketing') || actionLower.includes('landing') || actionLower.includes('brand')) {
-      comp = 'Marketing';
-    } else if (ownerLower.includes('sarah') || actionLower.includes('roadmap') || actionLower.includes('plan') || actionLower.includes('product')) {
-      comp = 'Product';
-    } else if (ownerLower.includes('paula') || ownerLower.includes('hr') || actionLower.includes('floor') || actionLower.includes('hiring') || actionLower.includes('onboarding')) {
-      comp = 'HR';
-    } else if (ownerLower.includes('legal') || ownerLower.includes('irene') || actionLower.includes('contract') || actionLower.includes('clause') || actionLower.includes('terms')) {
-      comp = 'Legal';
-    } else if (ownerLower.includes('finance') || ownerLower.includes('fatima') || actionLower.includes('budget') || actionLower.includes('expense')) {
-      comp = 'Finance';
-    } else if (ownerLower.includes('marcus') || ownerLower.includes('david') || actionLower.includes('routing') || actionLower.includes('provision')) {
-      comp = 'Operations';
-    }
-
-    let jiraPrio = 'Medium';
-    if (item.priority === 'High') jiraPrio = 'High';
-    if (item.priority === 'Low') jiraPrio = 'Low';
-
-    const desc = `As discussed in the meeting, this task is assigned to ${item.owner}. Please coordinate and complete before the deadline: ${item.due_date}.`;
-
-    return {
-      title: item.action,
-      description: desc,
-      priority: jiraPrio,
-      assignee: item.owner,
-      due_date: item.due_date,
-      component: comp
-    };
-  });
-
-  return {
-    email_subject: emailSubject,
-    email_body: emailBody,
-    jira_tasks: jiraTasks
-  };
-};
 </script>
 
 <template>

@@ -1,0 +1,609 @@
+Impromptu Microsoft Teams Meeting - September 10
+VIEW RECORDING - 74 mins (No highlights): https://fathom.video/share/hLC9uKZvQ9W3xG8X5Wp9_j3youYRNNEZ
+
+---
+
+0:01 - Ryan Burns
+  So, yeah, in terms of the property evaluation model, Mazar was just giving a brief update.
+
+0:06 - Randy Link
+  Sounds like the, you know, using rate of growth in that graph he used previously is done. Sounds like the building style considerations is done that was discussed previously.  And Mazar told us that the main focus now is to get the neighborhood code kind of classification rather worked out based on previous discussions on that.  In terms of the, where I'm trying to get, you know, I really want to, we have to focus on execution at this point and testing.  So my big concern is getting to the point where we can compare apples and apples, meaning, you know, let Mazar's model run.  And then you guys had five properties that you manually do, manually do the old way with the adjustment grid.  And they would be. But I think that is dependent on getting updated data for Lancaster. that a true statement, guys?
+
+1:10 - Mazar Sayed (mohammedmazar11@gmail.com)
+  But is there any way, like, we can kind of bring an estimate on the final land and the, you know, cost site recognition improvement, like, based on maybe certain other properties in the neighborhood or any sort of – I'm just trying to understand.  But from a logical perspective, it doesn't make sense. But any thoughts on that, whether we can calculate that based on some parameters rather than waiting for the data from, like, Ryan?  Yeah.
+
+1:42 - Ryan Burns
+  So for the land, I think what you could do at this point, Mazar, because I still – I haven't had a chance to get into Lancaster.  I've just been tied up. But what I do when there's limited land sales is I'll just do an allocation method.  So I'll look at this. Sales in a specific neighborhood. So, say it's neighborhood 100. I don't have the neighborhood codes in front of me right now, but I'll look at the sales over a two-year window and say, okay, the average sale price is $300,000, right?  And I'll take 20% of that, so $60,000, and I'll allocate that to the average lot size of the non-sales, right?  So, I'll say, okay, my average property sits on a half-acre. I'll make the half-acre land value $60,000, and then you can kind of adjust it up and down if it's smaller or if it's larger, but I think that should at least get us in the ballpark as far as something to use in your model now.  Does that make sense?
+
+2:54 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yeah, so the size is like you have given, there's a small acreage kind of For a parameter, right, in the data that represents the size, right?
+
+3:06 - Ryan Burns
+  In the data that I sent to Ernie, which I have sent to you, let me just confirm that the acreage is on there.  The last column, right? Yeah, should be in there. Yep, column X is the assessment acreage. So, you know, you'll see here, most of these are, I'm just looking at the first sheet here, but most of these are probably in that half acreage, but you do have, like, one of them is pretty large.  a 28 acre piece. So, obviously, something like that, we want to make significant adjustment on the land because 28 acres is way more valuable, right?  Yeah, that's okay.
+
+3:53 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Any thoughts on how probably you can get cost side reconditionment or is that something we Cannot do it at this point.  Yeah, the improvement one is a little more difficult because it's based on the individual attributes of that parcel, right?
+
+4:08 - Ryan Burns
+  So I can't say, hey, take an average, because that 28-acre parcel, for example, might have two barns on it worth $100,000.  But it also may not. I have no idea without looking at it.
+
+4:24 - Mazar Sayed (mohammedmazar11@gmail.com)
+  If I was able to estimate the price of the property without considering that, will that be a fair comparison?  I think so, because Ernie doesn't have that, you know?
+
+4:36 - Ryan Burns
+  Okay. So I think if we eliminate that from the Lancaster test for now, that'll be the apples to apples because Ernie doesn't have that data either.  Okay.
+
+4:49 - Mazar Sayed (mohammedmazar11@gmail.com)
+  So when you are making the assessment, you will know, okay, this is the price of the property. This is the extra adjustments, like, you know, components which come across.  So we add that to the formula. But of course, can estimate what is the, you know, basically based on the property itself, what is the price of it.  So you can also easily verify from what we get.
+
+5:16 - Ryan Burns
+  Right. Yeah. So essentially, you'll be producing a house value. If there's any improvements above and beyond that are significant, we can add that to the value later.  Or once we get the data fully set, you know, we can run it through, including the improvement value. But I think for the comparison.  Yeah.
+
+5:41 - Mazar Sayed (mohammedmazar11@gmail.com)
+  I'm trying to, like, identify, like, there's a base value, right, which you, based on which you are trying to measure the accuracy, like, which one is more accurate or, like, how much are we closer or the percentage error or sort of any dollar difference.
+
+5:57 - Ryan Burns
+  Right.
+
+5:57 - Mazar Sayed (mohammedmazar11@gmail.com)
+  So we need to calculate, like, looking at that. Will we be able to get rid of the cost side part from the total sale value, and then look at only the house value, and then compare the estimate we bring in?
+
+6:17 - Ryan Burns
+  Yeah. Okay. Yeah, so basically excluding the improvement value, right? Yes. Is that what I'm understanding? Yes. Yeah, and like I said, that's where Ernie doesn't have the improvement value.  So again, that'll be apples to apples with his product at least to see where the two numbers are coming in.
+
+6:36 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Sure. Okay.
+
+6:42 - Ryan Burns
+  I'm good with that.
+
+6:44 - Mazar Sayed (mohammedmazar11@gmail.com)
+  So I'll work on that. Yeah. I think might need the address or an X and Y coordinates. If possible, probably that either the address, the X and Y coordinates, but I think other information, we had a chat.  Probably I have it. I'll reach out to you.
+
+7:00 - Ryan Burns
+  Yeah, yeah, and the address is on that spreadsheet too, column E is your street number, column F is your street name, so like the first one is 59, 57 Broadway is the first one, 5152 William, so you have the address there.
+
+7:19 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Swift code and the address, street, right? Say that again?
+
+7:27 - Ryan Burns
+  Swift code and the street. Yeah, okay, so based on that we can identify the address and then generate, get the x and y coordinates.  Yeah, I think you should be able to get coordinates off that. If not, I can get the ones that are RPS, but those are not like latitude and longitude, so.  Okay. Okay.
+
+7:58 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Okay. Yeah, address would be good, but I can also get it from using the street code and street as well, but probably it give us the neighborhood and the street, right?  Not particularly the property level, but it's fine, I guess. Yeah, good with that for now.
+
+8:27 - Randy Link
+  So I'll go back to my question, I guess. I'm not intended to put any pressure on anybody, but I am curious.  When will we get to the point where we can begin to kind of critically assess the model versus the way we've valued in the past?  What remains to it? I know you've been busy, Ryan, but does this depend on you updating data to do your side of it, Ryan, to do like five addresses?  Well, if we're, when you say to do it, like we've done.
+
+9:00 - Ryan Burns
+  In the past, I guess, are you saying like the more of the manual appraisal way where we produce an adjustment grid?  Yeah. Yeah.
+
+9:09 - Randy Link
+  Yeah, I mean, I could do those one-offs.
+
+9:12 - Ryan Burns
+  They're not going to be, I don't have to develop the RPS data on that. mean, I'll use inventory data, but it's not going to rely on the land and the cost.  Now, when you say do it like we've done in the past, as in Amherst, we did have the final land values, and we did have the improvement value.  So if we want that, that's going to take me some time to do.
+
+9:38 - Randy Link
+  Yeah.
+
+9:39 - Ryan Burns
+  And there's 20,000 parcels in the town of Lancaster, so. Okay.
+
+9:45 - Randy Link
+  I get it. All right, so, but you did give Mazar a nice kind of formula to estimate those values.  So I guess, you you have your own way of doing it for the five that you might do, and he has to do it for all.  All go. Would that be a good way to, you know, sounds like it's an okay way to replace the final land value, that formula that you were describing?  Yeah, yeah.
+
+10:11 - Ryan Burns
+  So I just described to him an allocation method of, you know, looking at the average sale price and taking roughly 20% of that.  I always round it to like an even number. So if it's like 62 and a half, I might make it $65,000 for that average primary loss, that half acre.  For example, I'll make it equal $65,000. You know, to be perfectly clear, I don't think Ernie is developing a land value.  He is just developing a total value. And in most, you know, fee appraisal situations, the land value is not required to be developed, right?  So you're just getting to a total value. Right, but in the assessment world.
+
+10:57 - Randy Link
+  Shoot. I'm sorry, I'm talking over. Go ahead. ahead. Go Go
+
+11:00 - Ryan Burns
+  No, in the assessment world, we have to dictate a land value and a total value. So that's why I have to go through and produce all the final land values, and then I use that to build up to the total value with the modeling that we do in RPS.  Okay.
+
+11:18 - Randy Link
+  Yeah, what I was trying to say there was he, you know, where land size comes into play, I presume, in Ernie's tool is that he's trying to find comparables that are similar.  So he would, I would presume, look at land size to do that. Right, he will.
+
+11:35 - Ryan Burns
+  And he will probably have, if there's significant differences, if it's minor, it's probably going to be no adjustment. But if it's, you know, a half acre piece next to a three acre piece, there's probably going to be some value adjustment.  I don't know how he's going to determine that, but there will be some adjustment for lot size there, I would imagine.
+
+11:56 - Randy Link
+  Okay. Okay. All righty. Well, all right. Do we have a path forward? That is my question to cut through this.  If we have a formula for estimation of the land side that we produce for Mazar, and Mazar can implement that formula, I was busy writing the notes about the estimation formula that we just discussed.  I'm not sure exactly what you said. You don't have to repeat yourself, but for the improvement, you know, valuation, but did you all, did you come up with some conclusion there that he can do something to estimate that as well or not?
+
+12:36 - Ryan Burns
+  I don't think he can estimate it because it's really case by case on the property, but I, I think we can, we can almost ignore that for now because Ernie doesn't have the improvement values.  Mazar doesn't have the improvement values. So if we kind of take that piece right out of it, it'll be apples to apples, um, for the analysis, right?  Okay.
+
+12:59 - Randy Link
+  All right. All right. Hey, Ryan, real quick.
+
+13:03 - David Barnett
+  You know, we could, if we did want to include it, we could just run the old cost. I don't think there'll be an inherent difference.  And if we did need the land value, but I think what I'm hearing, correct me from Ron, is that we don't even need those.  How would that impact the comparison? Like, if we don't, are we going to be light? In other words, are we going to be light on our numbers in comparison to Ernie's number?  I don't think so, because Ernie doesn't have the improvements.
+
+13:35 - Ryan Burns
+  I see. Right. So we're essentially just getting to the house value. Yeah.
+
+13:48 - David Barnett
+  But that begs the question, if he's not, if he's for, I think, so Ernie.
+
+14:00 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yeah, he comes with the adjustments like with, you know, other improvements is when we like, he kind of refers to the images and then kind of does some adjustments on top of that.  That is where I think kind of certain parts come in. I have, I saw that when we did that demo as well.
+
+14:23 - David Barnett
+  Yeah, I'm just, I'm just thinking now, if he's not, I think what you're saying is ours. As an example, if there's a pool, I'm not talking about porches and decks.  We're talking about improvements that would have a material impact on value, would be outside of what's in the house.  You know, we have detached garages that we assign value to. We have pools that we assign value to. In the, in the rural setting, there might be outbuildings like barns and pool barns and other structures.  Oh. Is there an issue with Ernie if he's not adjusting it? You know, in other words, that's what I mean.  Is he light? And I don't know that there's going to be a huge amount. I mean, it's going to be a smaller percentage of the total, but that is a component of value is to add, you know, for a pool, for outbuildings, for a detached garage, for an attached garage.  I'm wondering if that, I think he is accounting for that, though, somehow, or is that any adjustment? Is that what you're saying, Mazar?
+
+15:38 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yeah, we could discuss with him, like, when he provides a solution or output, like, have you considered this kind of thing or is it just, you know, the property only, like, the main house only?  Are we also considering, like, improvements? So you can just, like, give his explanation. So based on that, it kind of makes us.  I whether he has included that or not.
+
+16:04 - Ryan Burns
+  Yeah, I mean the only way he could be tying that in is if he's scraping the public record because I did not give it to him as part of the sample data.  Oh, I see.
+
+16:19 - David Barnett
+  I see. From a testing perspective, he's not accounting for it because he doesn't have it. Right. And so, you know, Randy, to your true test question, then we wouldn't really want, you know, we wouldn't want the extra components in there because then that's a flawed testing frame of reference.  Okay.
+
+16:48 - Randy Link
+  And also we have, you know, if Ryan's going to create five valuations that he would want to ignore those types of improvements as well.  So we're all talking apples here. Yeah. Mm hmm.
+
+17:00 - David Barnett
+  And Ryan, that would greatly reduce the work effort, right, if I'm thinking about this correctly in terms of having to create a land table and run the cost and model and everything, right?  Yeah, so I'm basically providing Mazar solution.
+
+17:20 - Ryan Burns
+  He can use an allocation method to estimate a land value. It may not match exactly what we develop on the land table, ultimately, but it should be ballparked pretty close.  You know, Ernie, I don't know how he's, I don't even think that he's going to break out a land value because I don't know that that's in his scope, right?  No, he wouldn't. He's just looking for a total. Yeah. So he might make some lot-sized adjustments for, you know, a half-acre piece compared to a three-acre piece, but he's not assigning value necessarily to the land component itself.  Um, um, So I think, with that being said, we have a solution to make it apples to apples here.  Yeah. And I guess, really, to make it apples to apples, do we just ignore the final land? Like, does Mazar even need to go through the exercise of producing an allocated land value?
+
+18:28 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Well, the fact that we have, you know, optimized and done everything based on what we had as data, and now we don't have, like, two columns is a kind of question in the whole thing, right?  Like, we need to, like, we don't know, like, if the model is, like, better without those features. So probably it's something we need to test again.  But what I'm saying is, like, if it is on cost, is something, cost is the only part, the I think it's fine, is because.  Generally, it's an add-on value over the price of the house inventory, right? That can be subtracted from the sale price, and I can train the model that way, so it will be trained.  But I also can't get rid of land value as well. If so, we need to do a feature selection again, because end of the day, those features are the ones which have a relationship with the final price of the property.
+
+19:32 - David Barnett
+  Well, you're going to be making an adjustment based on land size, correct?
+
+19:37 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yes, yes. All right.
+
+19:39 - David Barnett
+  So now, not to go down this road, but we, Ryan, the gyrations and gymnastics that we go up for the land table, and now begs a question, which we're not going to talk about right now, but it begs the question is, is there a way to statistically- Basically, ...  ... Get the land values. understand the land breakdowns, and notwithstanding rural where there's 100-acre pieces or whatever, but is there a way to derive a land value out of our modeling using sales, and we can say, okay, in this given neighborhood, you know, outside of RPS, where we could say, okay, this is a realistic land value on the improved and then on the vacant.  Can we do that statistically? Kind of the way we do it, where we say the median sales price, okay, 30%, 40%, as sort of a side piece, and then this way we're not having to get – well, first of all, go through all of the land table gyrations.  I know they're going to run the cost, but, you know, we can talk about that, but I'm wondering now if we can deduct a land value statistically, and at some point I know I spoke to Josh about that.  Yeah. Yeah. Yeah. Yeah. Yeah. Yeah. don't know. That's what I do for the subdivision neighborhoods.
+
+21:04 - Ryan Burns
+  Those are quick and easy. It's the town outside stuff. They get a little more complicated. A subdivision, unless it's actively being built out, you don't really have land sales, so it's a straight up allocation.  Okay, what's 20% of the average sale price, median sale price, and what's the average lot size? And there you go.  Yeah.
+
+21:30 - Mazar Sayed (mohammedmazar11@gmail.com)
+  We were thinking to derive that because when Scott raised the question of how these land values are being calculated, and it's better to derive it statistically as Dave mentioned, but that's something we plan to do down the line once we kind of get out of this circle of discussions of which is best and so on.  So to kind of finalize, okay, this is good and we are going forward. End. End. Kind of do land valuation as a kind of the project and like develop that as well.  That is something we plan to do down the line, but that's something we need to initiate and get started.
+
+22:14 - David Barnett
+  Yeah, that was kind of my thought is to reduce the work effort of developing a land table. And now we're not, for this analysis, we're not considering the final land.  And I'm just sticking ahead to say, is there a way for us to do this more efficiently? It's the land tables of pain.  I mean, some divisions are, it's the stuff outside.
+
+22:40 - Mazar Sayed (mohammedmazar11@gmail.com)
+  It's just that we need to work towards that. Yeah, yeah, yeah. All right. Yeah, I don't want to, I don't want to.
+
+22:47 - David Barnett
+  And you need to be able to explain it to the property owner.
+
+22:51 - Ryan Burns
+  Yeah. That's the other challenge.
+
+22:52 - Mazar Sayed (mohammedmazar11@gmail.com)
+  So that's something I need to talk, Ryan, look through his process and try to model it. To a model.  So that way. It's kind of represents be like, you know, we have been doing, but it's more of a statistical way of doing it, reducing the bias and sort of, you know, and making it much faster than doing it manually.  So, but we need to like align with the thinking of like subdivisions and all those stuff.
+  ACTION ITEM: Incorporate land value est. formula into model. Use 20% of avg sale price, adj. for lot size. Ready by next Wed.
+ - WATCH: https://fathom.video/share/hLC9uKZvQ9W3xG8X5Wp9_j3youYRNNEZ?timestamp=1400.9999
+
+23:25 - David Barnett
+  Yeah. I don't want to, I don't want to sidetrack this conversation, but yeah. That's okay.
+
+23:31 - Randy Link
+  But for now, are we good with the kind of estimation, the simple formula, the rate per, you know, lot size concept that Ryan provided earlier to just get to the point where we can produce halfway from the model?  Yes. Yes. Okay. Yeah. So if you do that, then how much time do you need to do that Mazar is my question.  No, I can get it working next.
+
+24:00 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Okay, I'll probably share within, like, next week before the Wednesday call for the SAM, which Ryan shared with me.
+
+24:10 - Randy Link
+  Okay, so all the improvements we've talked about over the last, you know, several meetings, including this discussion today, you can incorporate and produce some results by next Wednesday morning.  And we can talk beforehand if you'd like. Yeah, yeah.
+
+24:25 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Okay, good.
+
+24:26 - Randy Link
+  So by next week, we're saying that would be the time, you know, when, Ryan, when you can get the time at that point, you'll have something that you can kind of look at or compare your, you know, estimates for a few properties.  And then that would be the basis for feedback back to Mazar if they're way out of line. And hopefully, hopefully they won't be way out of line, first of all, but if they are, you know, significant divergence, if there is significant divergence, you know, hopefully through a discussion, we can figure out.  And why that is so. So that's the plan. So, okay. This would be a good, you know, next step for next week if we get the model from Mazar.  Ryan, I'll let you, you know, decide your own schedule when you might be able to do, you know, five properties or whatever the number is that we can compare against.
+
+25:23 - Ryan Burns
+  Yeah, my plan, everybody.
+
+25:27 - Randy Link
+  Okay.
+
+25:28 - David Barnett
+  Yeah, good by me, yeah. Okay, awesome.
+
+25:32 - Randy Link
+  Okay, thanks everybody on that topic. Let's see, why don't we move to the chat bot discussion? Do you have something you can show or how do you want to proceed here, Mazar?
+
+25:43 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yeah, I'll just show you something and then I'll move to the one which we have built. So it's kind of easy.  So this is like something built using the same platform, platform, And use is our That is is VoiceFlow. You see this.  So this I'm just showing because there is branding. We can add on top of the chatbot since we are planning to attach to a client app or like website.  So this is something like we can add. Either it could be, I'll show you what are the different we can add for color.  We can add, change this sort of text here, the logo. And also if we want, we can add this or we can not have this as well.  And then like you have this, these parts can be like Luna, the name, the logo, the colors can be customized.  This part can be customized. The initial message is something you can customize. These are like more like prompts. So prompts in a sense, like just guiding the user.  For example, like, you know, if you say show promotions, it has an element like a carousel where you can like, like show multiple.  So I'm going for a different scenario, like for example, book employment, it will have a different message. So it's like guiding the user what to ask and what to use this chatbot for.  And also like we can like add, like powered by GA Associates LLC, like if we need that part as well to show that this is a product of ours.  And even if you want to link a website or something, we can link it here as well. So that like if they need, they can click and direct to our link.  And yeah, so this is like, there are three forms of pinning a website, like chatbot. Um, I can just go to that.
+
+27:57 - David Barnett
+  I real quick, um, with the. I I see it here, but like your AI agent, I saw before Luna, are we able to customize that and call that Ava?  Yes.
+
+28:10 - Mazar Sayed (mohammedmazar11@gmail.com)
+  So we can call different names, we can add different colors, logo, like if we have a particular logo we want to add.  So this is how the basic one looks like. This is the Voice Pro logo, it's the name and everything, so we can edit this as we want, even these colors we can edit it.  So this is how we customize the whole thing. If we are to add a logo, Randy, need a JPG or a PNG, which is one is to one ratio.  So it's like a square, one is to one ratio image. And we can customize the whole thing. We can either go for a bubble like this, or we can go for a bigger one like this, or include the logo as well as the name like I showed in the website.  So, there are different customizations. We can allow users to kind of, so some are like not available now because it's upgrade.  We need to upgrade since we are still in the freight hire. So, that is something we can't do. So, it will say powered by voice flow anyway because we are still in the free drive.  So, we need to update if we are to go with changing this to something else because still it will be mentioned as a free drive.  But some of these... it cost to be able to change that?
+
+29:38 - Randy Link
+  Yes.
+
+29:39 - Mazar Sayed (mohammedmazar11@gmail.com)
+  So, they need us to go to subscription which is $60. But if we are to anyway use this and the client is agreed and we are good to go, I would say like since we are also going for a demo, better to like go for a subscription.  Yeah.
+
+29:54 - Randy Link
+  Dave, I'll just make reinforce that point. don't think you want your demos for people to see what we're using as our...  I'm under the cover. So, at least for a short period of time where you're doing demos, the next couple of months, you probably want to pay the $60.  Yeah, that's fine.
+
+30:11 - David Barnett
+  Okay. That's fine. So, we'll get you some registration information.
+
+30:15 - Randy Link
+  Yeah.
+
+30:16 - David Barnett
+  And with that, what you had set up, just so I'm clear on it, Mazar, what you had set up previously with the sort of warning not to use it too much, because we're in a trial.  I think is from what I gathered. So, are you proposing utilizing this, which was different with what you previously set up, right?  Is that correct? Yeah. So, we are going to go for a subscription.
+
+30:45 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Then there won't be a limit. We can utilize it to a certain extent, like the usage limit will be really high.  So, generally, like it's might be like, unless we use it really too much, I don't think it will. So, yeah, let me rephrase the question.
+
+31:07 - David Barnett
+  What you had set up as sort of a demo test, that was a different service than what we're dealing with here, correct, or we're looking at this?
+
+31:17 - Mazar Sayed (mohammedmazar11@gmail.com)
+  No, It's the same service. I got you. All right.
+
+31:20 - David Barnett
+  So we would want to get the subscription, which doesn't. If we get the $60 subscription, we don't show what's happening under the covers for our demo purposes.  And then are we, we would, it would still that $60 for demo purposes, we would still be covered in regards to requests, right?  Yes, yes. Okay.
+
+31:48 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yeah, that's fine.
+
+31:49 - David Barnett
+  Yeah, just, yeah, Randy, just or Mazar, just get me the information, subscription information, and then, you know, as Randy and I discussed, we want to make it.  Initially, we want to make it so that it's NOLA-specific, so those questions that I submitted over the weekend, and then we could – Randy, we could probably – I don't have a logo for AVA.  I mean, we could definitely spin one up, I think, pretty easily, at least an initial one, but we may want to use the same sort of fonts, know, color patterns or whatever that we did for PowerAppeal, just so there's some symmetry there.
+  ACTION ITEM: Update chatbot w/ GAR branding. Use PowerAppeal color scheme, logo (A w/ hash lines) from Randy's email.
+ - WATCH: https://fathom.video/share/hLC9uKZvQ9W3xG8X5Wp9_j3youYRNNEZ?timestamp=1948.9999
+
+32:39 - Mazar Sayed (mohammedmazar11@gmail.com)
+  I think that would be a good idea, just so at least we have a base.
+
+32:42 - David Barnett
+  We could change it later, but I'm just thinking for demo purposes, so there's familiarity.
+
+32:48 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yeah, if you can send me some screenshots of the application or the page we are trying to integrate this, I will try to come up with a better color which goes along with that page.  Yep, I'll do that.
+
+33:02 - David Barnett
+  And that does be a question, you know, not to get too far down the technical road, but does it make sense for us to piggyback, Randy, so that they have – they know the familiarity of the PowerPeel interface.  Is it – does it make sense for us to build this on top of the PowerPeel, understood that it's a staging site?  But maybe that's – maybe that's what we do is that we'll have that power – you know, we use the PowerPeel site, and then this – built this on top of that PowerPeel site, maybe.  Yeah. Yeah. It's closed to the public right now.
+
+33:39 - Randy Link
+  The public can still get there. That's interesting. We could put this on, like, the back-end review screen that the, you know, authorized users can get to.  That's one way. Yeah. But the answer is yes, we should put it on that somewhere. So, we'll find a place to do it.  Okay. And by the way, there's this nice little logo we're using for PowerPeel. You know, it's got an A with some hash lines.  I know. I thought about that, too.
+
+34:06 - David Barnett
+  Yeah. Yeah, I know. Yeah, so we may, yeah, maybe that's what we do is we just put that in there for now and revisit it.  Okay.
+
+34:24 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Dave, would you like to, like, get some questions answered and see how it answers and then give some feedback?  Like if it's good or good? Oh, yeah.
+
+34:34 - Randy Link
+  We need to do that. Yeah, we need to test that.
+
+34:37 - David Barnett
+  Yeah. With what was sent, let me just see, I just, did they provide, they provided answers, too, right? Or were they just questions?  No, it was answers as well.
+
+34:52 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Oh, there were answers. Yeah, yeah. Okay. So, along with that, I'm using two more. I think this was provided before.  So, um... One is, there's a document called Orleans 2 Docs, and there's something called Assessment QA. This is the one you shared with me.  So should we use these two also or just stick to only this?
+
+35:19 - David Barnett
+  Yeah, I don't know what that Orleans 2 is. Okay, I can show you. Yeah, let me see. Because I'm looking at the FAQ one right now that I sent to you.  So I know what that one looks like, but I, that Orleans 2 is, that's...
+
+35:36 - Mazar Sayed (mohammedmazar11@gmail.com)
+  I think it's something like Assessment Office 2, what does the assessment do, how do I dispute my assessment, what is mileage, how my property tax is spent, how do I calculate property taxes, how often is property valued, how do I pay...  Where did this come from? Ha, ha. Ha, I think someone shared with me. I didn't find it.
+
+36:06 - Randy Link
+  I don't remember. No idea.
+
+36:11 - David Barnett
+  Yeah, that's weird. I don't know where that. Oh, you know what? Maybe this is something we posted in PowerPeel?  Maybe I'm letting PowerPeel right now.
+
+36:26 - Randy Link
+  Let's see. Let me go to the help screen to see what's on there. I've never seen this before in my life.  Right. Yeah, yeah. East Bank, what the heck? Maybe it came off their website. Maybe.
+
+36:44 - David Barnett
+  It must have been. I mean, it's good. I've just never seen it. The only one that I've seen is the FAQ.  That's what I forwarded over the weekend. That's the only thing I've ever gotten from them in regards to questions.  And I know we got stuff from Bossier's, but this is Orleans, Paris, so Bossier, Paris, so this is. Yeah.
+
+37:13 - Randy Link
+  I, yeah, we had to get, you know, we didn't write this. Nobody in GAR wrote this. Yeah, yeah. No, I just.  got it from somewhere. Yeah. I mean, they're, it's fine. They're good.
+
+37:26 - David Barnett
+  They're good questions. I, you know, can you scroll back up again? Again, I've never, again, I've never seen this.  So, I mean, I think these are all, these are all good. You know, I think, I think we can build these in.  I don't see why not. The only question I would have is, you know, how do I dispute my assessment?  That's, that's a lot of text there, but. That's okay. It will, it will short it out and put it out.
+
+37:57 - Mazar Sayed (mohammedmazar11@gmail.com)
+  It won't like put the whole thing out. won't. The whole thing in one. Yeah. Okay.
+
+38:02 - David Barnett
+  It looks like it was the FAQ on their site, what I'm coming up with here. Yeah, so correct me if I'm wrong, Mazar, and Randy, too.  Essentially, you would load these in, right? I'm just thinking for demo purposes, and then I would say, you know, how do I dispute my assessment, right?  This is what I would go through when showing them this, then that would display. Am I wrong about that?
+
+38:37 - Mazar Sayed (mohammedmazar11@gmail.com)
+  That something can do, but also like you can be like, okay, we can ask any questions from these as a customer support system.  And you can just ask questions, which you already know, like, which we already provided, that you need, like, you are aware of it.  So you just, you don't have to show side by side, you can just be aware of, okay, one of the information I have.  So, And I'm going to ask questions regarding that. So it's more like the customers doesn't like, who are the people seeing?  They don't know what's the information we have provided. It's just that it's able to like tell you the right information.  Yeah, I understand.
+
+39:18 - David Barnett
+  But so I'm just saying for display purposes, how much of a variation, like if I type in, how do I dispute my assessment?  I mean, we'll test it, but I'm just for my own knowledge. If I type in, how do I dispute my assessment?  This is what gets displayed when a property owner disagrees, blah, blah, blah, blah, Right? Yes. All right. Now, if I say, you know, my assessment's too high, like what?  Obviously, there'll be some learning involved, you know, over time. But does it need to be verbatim that question? Or is there some sort of variation that I would ask?  That it would be able to intuitively know, okay, this is a dispute assessment question, right? Yeah, yeah, it will be able to.
+
+40:11 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Okay. We can try it live if you want, just here. Yeah, no, I mean, I would load these in.
+
+40:21 - David Barnett
+  I would load in the FAQ or feed these in. Yeah, there is one more thing, assessment QA.
+
+40:28 - Mazar Sayed (mohammedmazar11@gmail.com)
+  I think this came from the internal team, but I'm not sure if we need to use this. Yeah, that was probably, which is important.
+
+40:37 - David Barnett
+  Yeah, it's important for us because those are questions that we get that are GAR-related. So that begs the question, too, is can we sort of section them off per – can we section these off for specific use cases?
+
+41:00 - Mazar Sayed (mohammedmazar11@gmail.com)
+  So in other words,
+
+41:01 - David Barnett
+  When we deploy this from a ProSight in New York State, these are the questions, right?
+
+41:06 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yeah, so we can create multiple projects under the same subscription, so one can be for all-in, one can be for, you know, other, and one can be for GARP.  We can just create multiple projects under subscription, and they can share the same subscription, so that we can build different chatbots based on knowledge base.  And make it specialized for individual tasks, so you can do that.
+
+41:35 - David Barnett
+  And Randy, you're clear on the back-end connection or the coordination to say, okay, this is in New York State, this is in Orleans.  We would just have to be more specific to whatever jurisdiction we're deploying this on.
+
+41:54 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Is it, like, different platforms we are deploying it on for each state, or is it, like, same state, but we need to be able next Bye.  Bye. to guide it based on the where the location is coming, the user is like coming from.
+
+42:08 - David Barnett
+  Yeah, think it's the latter because I think that there, while it might be Louisiana, they may have a different series of questions in Bossier versus in Orleans Parish, and they're both parishes within Louisiana.  They may have a different platform.
+
+42:30 - Mazar Sayed (mohammedmazar11@gmail.com)
+  ahead. Or the same platform, but they need to share.
+
+42:36 - David Barnett
+  This, it would be the same, it would be the same platform, but there would be different questions. There, there may be some that are similar, but I think there might be, it might be a different set of questions like that, in other words, or answers for that matter.
+
+42:55 - Mazar Sayed (mohammedmazar11@gmail.com)
+  So same question, different answers, or your meaning different, it can be different questions because we can take. So, I'll  A lot of questions. That's okay. But if we are to like give two different answers based on the user's location, then we need to like think through.  Yeah.
+
+43:13 - David Barnett
+  That's, well, I'm just thinking like in New York, it depends how granular we're going to get with it. But in New York, most of the municipalities might have the same dates.  But then we may have some municipalities that have different dates. In other words, like when's the final role? In most communities, it might be July 1st.  But then when we go to Westchester County, it's September 15th.
+
+43:45 - Mazar Sayed (mohammedmazar11@gmail.com)
+  So one thing I can do is at the beginning itself, the user has to kind of select which town they are from.  And then we go into the, you know, sort of chatting thing. So based on that, we can tell that the whole information that we are.
+
+44:06 - David Barnett
+  Yeah, and let's just focus on New Orleans because we just, I don't want to get caught in the weeds with, I mean, it's important to kind of, yeah, it's important to sketch this out, but Randy, I'm just thinking, is there a way for us, maybe Mazar knows us, but is there a way for us, like if it's a pro site, in Westchester, rather than them have select Westchester, it knows intuitively that it's Westchester.  In other words, they don't need to select that municipality. And with that, we may have standalone URLs that this is tied to from an application standpoint.  If it's, if we have a URL that's Bossier, or that we know it's.
+
+45:02 - Randy Link
+  Yeah, can easily, you know, store in the database, you know, the information, the key components of the JavaScript that's required to put this widget on our pages.  We can kind of do that in the database and map it to each jurisdiction. And so, yeah, it sounds like we are, if we're having custom content for a given jurisdiction, we need a, you know, a separate project on VoiceFlow.
+
+45:29 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yeah, and also, like, we can do it other way as well, and, like, from the VoiceFlow side, like, if you can provide, based on the URLs being accessed, I can look at if we can capture the location.  But if it is something easy to do from your end, I'll be happy to, like, create a different project and easy to do.  That would be much easier to handle.
+
+45:50 - David Barnett
+  Yeah, no, I'm just sticking to myself, like, who is Gar? Like, as an example here, Orleans Parish, that's not going to be a question.  That might be something where we're deploying, where we're doing a REVAL project in New York State somewhere. So I think it's going to be important for us to have these kind of separate projects set up on this so that we can – I mean, it's going to be pretty straightforward.  And we may have this specific line of questioning and answering answers in, you know, four municipal – I'm just using an arbitrary number – but four municipalities where we're doing projects.
+
+46:37 - Randy Link
+  And it's more project-driven.
+
+46:39 - David Barnett
+  So I see it, you know, again, I don't want to spend a ton of time on this, but I see it evolving into, you know, and growing to like, okay, these are – this is what we would – this is the data set that we want for REVAL projects.  This is the data set that we may want for an annual. Project in New York. And then we have our out of state.  What state is it? Okay, Bossier, Bossier. So yeah, not to get too far down the road, but I'm just thinking that's, I think that's where we would have to just be, you know, be coordinated on the back end with it.  So let me see if I can summarize.
+
+47:26 - Randy Link
+  Let's say, you know, we'll have a, we may have different, sorry, the same chatbot. Ideally, we'd have the same chatbot project for a given jurisdiction.  And I'm guessing that that's going to be $60, you know, per jurisdiction to do that. Is that, first of is that true?  How many projects do you get?
+
+47:47 - Mazar Sayed (mohammedmazar11@gmail.com)
+  I think we can go up to like 50 on a single subscription. It's just that there's a limit in terms of usage.  Like, okay, there's something for credits. So probably, I would say, pretty good. And now they're on 2,000 messages in total.  So if based on usage, if we see there's a usage ramp, we can upgrade the credits so that we can allocate more messages.
+
+48:20 - Randy Link
+  Okay, that answers the cost question then. So we have a single subscription, we need to ramp it up the more projects we create, but there is a path to add more projects.  Each project is a jurisdiction. And then for a given jurisdiction, if there are multiple things that we want to talk about, and maybe you said it, I apologize.  I was sending an email out to you about the color scheme and the logos. So you'll get an email on that just so you know.  But if we have like five different unique discussion topics, is there a way to say, I want to slant the output of this particular project.  report important, restrictions. So I want it to really focus on topic one, and so you basically have dumped all the information for the five topics into your library for the one project, but you can tell it to focus its answers on a given topic.  Yeah, we can have separate knowledge bases for each project.
+
+49:23 - Mazar Sayed (mohammedmazar11@gmail.com)
+  So based on what we upload to that knowledge base, it will be used for that project. Well, I'm assuming a project is a jurisdiction in my scenario.  Yeah, so we can have the information of that jurisdiction only be available for that project. So each project will have information regarding only that jurisdiction.  So that way we are tailoring the information based on that. Right.
+
+49:52 - Randy Link
+  But what if that jurisdiction has five topics that we could possibly want to tailor the project to, you know, to focus  So we want that one project, meaning that one jurisdiction has five different topics. Can we put all the topic information in one knowledge base?  Yeah, we can.
+
+50:13 - Mazar Sayed (mohammedmazar11@gmail.com)
+  But yeah, if you want one chatbot to kind of answer all five topics of answers, then we can just upload.  So currently I have uploaded these three documents. So similarly, we can upload five documents as well. Understood.
+
+50:31 - Randy Link
+  But when it comes to using that, let's say we have five different web pages. Each web page is one of those five topics.  Can we somehow tell the bot to answer primarily based on, you know, a given topic in this scenario? No, I think we need to create different projects then.
+
+50:54 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Okay. Okay.
+
+50:57 - Randy Link
+  Okay. All right. So we just have to decide. And do we need a hard separation between topics or not?  I mean, all the examples you gave, Dave, potentially we just dump them into the basket. And if somebody's asking about whatever it is, you know, how to do an appeal, that's, you know, the chatbot should be smart enough to, you know, find the right information for that.
+
+51:21 - Mazar Sayed (mohammedmazar11@gmail.com)
+  So if you have the different topics, it will be able to answer. Like even if you ask a question from different topics, it will be able to answer.  It's just that there will be also like answering different, like you can ask any of those five types in one chatbot and it will answer.  So if you want like to restrict it only for one topic, then we need to go for different projects also for that, just to answer your questions clearly.
+
+51:48 - Randy Link
+  Yeah. Yeah. Okay. Yeah. We'll just have to see how it works. mean, ideally you're not, you know, to reduce, you know, complexity and cost.  It would just be, you know, one jurisdiction gets one project and we have five topic documents or whatever. And everything works out great, but if we find that it's not producing the right answers off-topic, literally, then we would have to separate into different projects for a given jurisdiction.  Sure, sure. So it's a matter of experimenting, I guess. Yeah. Okay, so I did send you the color scheme in an email.
+  ACTION ITEM: Register VoiceFlow acct. Use Mazar's instructions. Upgrade to $60/mo plan. Add Mazar as editor.
+ - WATCH: https://fathom.video/share/hLC9uKZvQ9W3xG8X5Wp9_j3youYRNNEZ?timestamp=3146.9999  I sent you the logo, so just maybe find one of those A's. You'll see there, the A logo. Maybe you use that.
+  ACTION ITEM: Email David VoiceFlow reg. instructions. Inc. acct creation, upgrade steps, editor invite process.
+ - WATCH: https://fathom.video/share/hLC9uKZvQ9W3xG8X5Wp9_j3youYRNNEZ?timestamp=3146.9999  We need to get, Dave, the registration information.
+
+52:37 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yeah, pretty simple. I'll just show you. So this is my account. You just go to VoiceFlow and create an account.  Then you go for, like, maybe upgrade, or you can go for, like, upgrade here, or, like, you know, something like that.  Or you can just go for plants and building, and you can set up, you know, subscription. And then what you can just do is go And  members, and then invite member. So you can add my email and send me an invite, and I'll be here.  You just have to give me the editor, you know, credentials. That's it. You'll be probably the owner. I just need editor access.  That's it. OK, and we'll see how many editors we get.
+
+53:24 - Randy Link
+  It says one of one editor taken, but this is the free plan, so we don't know what the base level plan.
+
+53:30 - Mazar Sayed (mohammedmazar11@gmail.com)
+  This has the base level, like Pro, which has only, I think, one editor. So there'll be owner and one editor, and that can be viewers as well.  So you can add viewers also. But if we need additional editor seeds, we need to pay extra. OK, yeah, we don't need that.  But the owner can add it, and also the editor can add it, and there can be viewers as well.  OK.
+
+54:00 - Randy Link
+  OK, Dave, is that what Is that good enough for you, Dave, to get an account?
+
+54:05 - David Barnett
+  mean, I think, yeah, for now, I mean, I think that works until our needs become more, but, you know, again, that's, and then just to clarify again, once we do the $60, I saw something that said 10,000 credits a month.  Yes. What does that equate to in real time? You know, what's 10,000 credits? Does that equate to a request?  Does it?
+
+54:37 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yes, it's based on the messages usage. So in a fair level, I would say 2,000 messages. Say that again, 2,000 or 10,000?
+
+54:50 - David Barnett
+  Yes, 2,000 messages.
+
+54:52 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Credits is not directly messages.
+
+54:55 - David Barnett
+  Okay, so it's not, it's not one for one. No. In other words, we would, 10,000 gets.
+
+55:03 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yeah, it's a fair amount, but sometimes can be higher. So I'm just kind of giving you a fair estimate there.  I see. Yeah, yeah.
+
+55:13 - David Barnett
+  So, you know, we've got to put it through the paces. If we use 200, we're well within the 2000, you know, through demos and everything else.  I guess my next question is if I would think we would put something in there to let us know that we're getting close to the limit.  You know, that we only have, you know, 500 left or something like that. And then from a scalability standpoint, what's the next tier?  So $150. What does that get us? I know it probably gets us additional editors, but I'm just thinking. It's 30,000 credits.
+
+55:56 - Mazar Sayed (mohammedmazar11@gmail.com)
+  It's just a bit more. And we have a few more others as well. But if we are like kind of in a hurry, we can add, I think there's a way to add 50, 10,000 more credits with $50, there's way to add that task.  For particular months, if you need high, like you see high traffic, then we can add 10,000 credits more only for that month.  So we can save for the rest of months, which have lower traffic.
+
+56:31 - David Barnett
+  Yeah, okay. No, because I know what the next question is going to be after we show them and they love it, how much is it?  So I want to be able to have some, an estimate internally as to what the, what the, what the running sort of maintenance cost is.
+
+56:53 - Mazar Sayed (mohammedmazar11@gmail.com)
+  I would like to show you something as well, like, Um, So this has something called transcripts, which has the all the chat information.  So like if someone comes and chats with it, like we can visualize it in this UI in voice flow, but they also have these APIs to pull these and show it to a different platform.  Say for example, we need to show, let the clients kind of view this information. Then probably we need to use the API here and put that information and show it maybe through a different platform where you can just download it and share it as a Excel sheet or something.  So if we need something like this, we should be able to kind of grab those as well.
+
+57:50 - David Barnett
+  So in other words, I think what you're saying is we would be able to, we can pull it into a different platform.  which, which is sort of interesting to me because. so so so so so so Maybe that's something that would be, Randy, integrated into PropNexus, like if it has email correspondence or even with PowerPeel, if there was correspondence for questions, you know, real-time questions, so it's not an inquiry made where that person needs to respond to them.  You know, I'm just thinking down the line again, I don't want to sidetrack the conversation, but it would be good to potentially have a summary that we could provide to the client, right?  Yeah. Yeah.
+
+58:52 - Randy Link
+  I guess this would be the opportunity for that. Yeah.
+
+58:56 - David Barnett
+  And if it was more specific correspondence. talking you being accept at Thank That we would identify to a specific property, we would be able to tie that to a specific property.
+
+59:11 - Randy Link
+  Yeah, that is where we would need to beef up the project. We're talking about the chat, you know, particular project for a chat widget to be able to reach out to the database and get particular details.  Yeah, but we obviously, we don't plan to demo that in a week, but that is there. Yeah, no, that's okay.  Yeah, that's all right.
+
+59:33 - David Barnett
+  Yeah, I want to, I don't want to get, I don't want this thing to mushroom into, let's try to just keep it narrow, narrow focus, but this is really sort of interesting to me.  Yeah. And then I guess the question, and I think we said, we talked about this early on, is, you know, back to the buy versus build.  Is, is this still the viable solution, man? Yeah, I don't know. I'm asking this question, I I know the answer to it, but if there was a custom solution, would we still be relying on, you know, a third party, or is this giving us what we need?  Yeah.
+
+1:00:19 - Randy Link
+  If we try to do a custom, Dave, from initial review that I did and then Mazar also did a review, you have to buy various services from either, you know, Google or AWS or Azure, and those can be, can get pretty costly if you're trying to do this type of AI-based, you know, response generation, AI, Gen AI.  So, you know, baseline is probably 175 or 200 hours a month plus usage.
+
+1:00:52 - Mazar Sayed (mohammedmazar11@gmail.com)
+  And also, like, my concern is, like, we build chatbots, sometimes people don't like to use it, and they would like, would like to directly call and ask from a human.  So, So, It's better, like, you know, fail fast. I would say, like, we'll put it out and we see good traction and we see value in it.  And then we can think of how to integrate more information. And once we have something like, okay, we are concerned about security, we are concerned about putting this information into a chatbot, and we also see the building rising up, then we can quickly try to work towards getting, you know, a custom solution done.  Yeah. Yeah, no, that makes sense to me.
+
+1:01:35 - David Barnett
+  Let's see how this goes. We have enough now that we can scale if need be. And then if we have to scale more, then we're going to have to pivot to something that can handle it.  And then with what you showed me in this, are we able, do we have the capability to make calls to the database?  Sorry. Sorry. So, Randy, I'm just thinking if they want more specific where we have to pull in CAMA data, we have the capabilities with this existing solution, correct?  Yes.
+
+1:02:15 - Mazar Sayed (mohammedmazar11@gmail.com)
+  We have already discussed with Randy.
+
+1:02:18 - Randy Link
+  There's a way to do it.
+
+1:02:20 - Mazar Sayed (mohammedmazar11@gmail.com)
+  We have discussed. So, if that's required, it's just some work needed. Yeah.
+
+1:02:26 - David Barnett
+  I'm just thinking someone asked me what's my inventory or what's my square footage or something like that. Yeah. We'd have to pull to the CAMA data and Tyler's system to be able to query that.  We have that capability with this, right?
+
+1:02:40 - Randy Link
+  It's, you we have to leverage a tunnel to their on-site network to get, you know, in the case of Orleans, to get to their data.  So, that's a Cloudflare tunnel and this exactly will be used for PowerFeel. Once we have that, then we need to create the queries and figure out how we're going to...  So, be an endpoint that we would put in... In this case, like in PowerAppeal, in the API for PowerAppeal, and then this chatbot would be calling that API.  And that API in turn uses the tunnel to make a query of the Tyler system. So those are the kinds of hoops we will go through, but, you know, I just painted the picture of how it is very doable.
+
+1:03:22 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yeah, we might need to collect certain information just to verify who is a person and whose property it is to verify, like, we pull out the right information based on the person.
+
+1:03:36 - David Barnett
+  Yeah, and with that, and that's a very good point. I mean, and with that, too, is how do we protect against malicious behavior with someone setting up a bunch of requests and then we burn through, you know, 10,000 credits in three minutes or something.  You know, I just hate to think that way, but I'm wondering if there's protection. We can, based on a user ID, limit the number of conversations a person can have.
+
+1:04:09 - Mazar Sayed (mohammedmazar11@gmail.com)
+  That's something we can do. Okay. Yeah.
+
+1:04:14 - David Barnett
+  All right. No, this is great. Yeah, if we can make this more, you know, it's a short turnaround here, but if we can get something that looks no less specific, answer these questions, put it through some pages, even I'm thinking, Randy, I could give Brent access to it and let him provide some, you know, quick and dirty feedback to us just so that I'm prepared for the 22nd.  That would be good.
+
+1:04:49 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yeah, that would be good.
+
+1:04:51 - Randy Link
+  I understand. So I guess to move this thing forward, we have a couple things we have to do. One, Dave, you know, when you can, please get that account so that we can make it look like a GAR product.
+  ACTION ITEM: Provide JS for PowerAppeal integration. Ensure compatibility w/ staging env. Send to Randy when ready.
+ - WATCH: https://fathom.video/share/hLC9uKZvQ9W3xG8X5Wp9_j3youYRNNEZ?timestamp=3899.9999
+  ACTION ITEM: Integrate chatbot JS into PowerAppeal staging. Await Mazar's code. Ensure visibility only on stage site.
+ - WATCH: https://fathom.video/share/hLC9uKZvQ9W3xG8X5Wp9_j3youYRNNEZ?timestamp=3899.9999  Yeah. That will allow extra capabilities that Mazar needs to wrap up the design and start the testing. While that's happening, the other thing we have to do is get the little bit of JavaScript and put it somewhere on PowerAppeal.  So those are kind of the, aside from testing the whole thing out, make sure the content works, those are the technical pieces.
+
+1:05:25 - Mazar Sayed (mohammedmazar11@gmail.com)
+  We have a test or a pre-prod for the appeal, the PowerAppeal, so that we can just deploy there first and then allow others to use it.  And then once we are ready, we can just go to production. Yeah, we do have a stage site.
+
+1:05:42 - Randy Link
+  We could just make it show only on stage, potentially. Yes, yes, yes, that would be great. Yeah, thank you.  All right. So I guess that's the immediate next step, and this has to be ready by Thursday of, you know, would be ideal.  Thursday of next week, we're done. We have it running and power. Reveal stage, and then on the following, what, Monday, is the demo.  Sure, yeah. Yeah, at some point.
+
+1:06:10 - David Barnett
+  It might be Tuesday, but let's work with, let's say Monday. Okay. I'll be able to send you the JavaScript once we have the account ready.  Yeah, Randy or Mazar, just send me the information so that I can register it. Yeah.
+
+1:06:33 - Mazar Sayed (mohammedmazar11@gmail.com)
+  So send me what's needed on that. I'd to do that. Okay. Sounds like Mazar is going to send that link to you.
+
+1:06:42 - Randy Link
+  Okay. Yeah.
+
+1:06:44 - Mazar Sayed (mohammedmazar11@gmail.com)
+  And a link and some instructions, so it's easy. Yeah, just tell me, just make sure I'm signing up for everything and all that.  Sure, sure. All right. Okay, guys.
+
+1:06:56 - Randy Link
+  I mean, we're out of time, but can you give two sentences an update on the, uh, the, uh, Yeah.
+
+1:07:04 - Mazar Sayed (mohammedmazar11@gmail.com)
+  So I think Indra is having a hard time doing stuff, but we haven't trained a model rate. She's seeing why aren't we improving?  But I'm saying we are not yet enough samples to train. So I did some verification on top of what she shared and missed a few.  So we have around 100 full ready in terms of myself reviewing. So we have some things working around like to be fixed.  I'm trying to get those as well. So what I'm ideally looking at is 150 as a training sample and probably another 50 as testing.  So once we train the model, we need to be able to test it and see how accurate that is across like some samples.  So you need a test sample as well. So I'm trying to like get there, but I don't want to like push Andrea as well, like she might get frustrated.  So I'm just trying to help through, sit down with her and like, know, kind of get where we want.  Yeah, we don't want to frustrate Andrea.
+
+1:08:22 - David Barnett
+  So I, yeah, maybe I'll just reach out to her independently just to gauge, you know, but is she, is she getting, is she getting the results to you?  Yes.
+
+1:08:37 - Mazar Sayed (mohammedmazar11@gmail.com)
+  And, but she's just struggling in getting the results to you.
+
+1:08:42 - David Barnett
+  Is that an accurate statement? Yes, there is struggle. So I'm trying my best to help out as well.
+
+1:08:49 - Mazar Sayed (mohammedmazar11@gmail.com)
+  I think she is in a better state in terms of understanding of what we want and what's the solution.  It's just that sometimes like the harder ones, really the harder ones, we are the dimensions, which. It's mentioned and drawing is kind of really off and sometimes it's just a bit more complex.
+  ACTION ITEM: Schedule mtg w/ Andrea, Randy re: image processing. Discuss expectations, challenges. Incl. Mazar if available.
+ - WATCH: https://fathom.video/share/hLC9uKZvQ9W3xG8X5Wp9_j3youYRNNEZ?timestamp=4153.9999  So in that scenario, the AI fails completely and she has to like do it from scratch. So that is where I kind of, it's really hard for her, which I can also understand.  Yeah.
+
+1:09:24 - David Barnett
+  Hey, Randy, maybe we meet with her separately. I mean, Mazar, you can jump in there, too, but just to make sure that she's understanding our expectations, Randy.  Yeah. Yeah. You know, we've kind of like thrown her in the deep end without a float or I just don't want her to, you know, feel like she's on an island.  Yeah. Yeah.
+
+1:09:54 - Randy Link
+  No, it's a good idea. Yeah.
+
+1:09:55 - David Barnett
+  It's better not like we train some other person since the end is all good, you know, just go ahead with.
+
+1:10:02 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yeah, I just want to be careful.
+
+1:10:08 - David Barnett
+  We've given her a difficult task. I just don't want her to feel that it's an impossible task. She desperately wants to do a good job.  That's for sure. I just want to make sure that we understand what she's up against, I guess. Yeah.
+
+1:10:34 - Randy Link
+  You had that relationship with her there, Dave? If you want to just include me in a meeting sometime for Tuesdays or Thursdays, that would be good.  Yeah. All right. I'll shoot her an email.
+
+1:10:45 - David Barnett
+  Okay.
+
+1:10:48 - Randy Link
+  Alrighty. So next step summary is the property valuation project. We have a formula for estimating land value. I that Mazar is going to attempt to incorporate.  That in his data. And by next Wednesday, we'll have output of all the revisions he's made recently to the model.  And then sometime soon, Ryan will, I guess, evaluate the old-fashioned way, three or so properties so we can compare against the output of the model.  I think that was the big thing. We're going to ignore improvements for now. I also heard that. Ava, Dave, you're going to register after you get some instructions on how to do so with VoiceFlow and then over the next week, we'll, as soon as, you know, you get that information, Mazar, and you can update the chatbot, let me know as soon as you can.  Even if the output is not exactly what you want, please provide me some JavaScript, then I will make sure that gets placed somewhere in PowerAppeal.  Sure. Sure. Okay. And then the images, next step is we're going to talk to Andrea, but, you know, it's kind of status quo.  She'll continue to try to work toward that final 50. Sure, sure. Anything else? No, I think good.
+
+1:12:16 - Mazar Sayed (mohammedmazar11@gmail.com)
+  I think it's better to share it with someone outside car once we have the branding in place and we have put down in the test, at least, version of the power appeal.  Yeah, yeah, exactly.
+
+1:12:31 - Randy Link
+  Okay.
+
+1:12:32 - David Barnett
+  Yeah, we have resources for, on the logo front, marketing front, as well as on the website design, you know, thought pattern.  But let's get something up and running. Let's take a crack at it internally before we tap those resources. And then once we have a functioning product, we'll be able to build around it.  But let's just use NOLA for now. And that's that sort of color schema. Come on. Pattern and all that stuff, logo.  Sounds good.
+
+1:13:09 - Randy Link
+  Okay, folks. I think that's a wrap. Yeah, thanks so much. All right. Yeah, appreciate it. Thanks, Mazar. Have a good evening, Mazar.  Thanks.
+
+1:13:20 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Thanks. Bye.

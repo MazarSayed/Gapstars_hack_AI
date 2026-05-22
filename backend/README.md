@@ -1,143 +1,148 @@
-# 🤖 Multi-Agent Meeting Assistant AI
+# Multi-Agent Meeting Assistant — Backend
 
-A powerful, command-line multi-agent AI assistant built with Python, the official **Google GenAI SDK**, and **Pydantic**. It analyzes meeting transcripts to generate structured summaries and extract actionable tasks. The tool processes these requests concurrently using asynchronous execution and supports transcript translation.
-
----
-
-## ✨ Features
-
-* **Parallel Agent Processing**: Leverages `asyncio` to run the **Meeting Summarizer Agent** and the **Action Item Agent** concurrently, minimizing latency.
-* **Structured Output Validation**: Enforces strict Pydantic schema validation on Gemini's JSON outputs, ensuring predictable, type-safe results.
-* **Multilingual Translation**: Pre-translates transcripts into target languages before running downstream analysis.
-* **Externalized Prompts**: Cleanly separates agent prompts into dedicated markdown files (`prompts/`) for easy tweaking and versioning.
-* **Flexible CLI Interface**: Accept inputs from local files, configure target translation languages, and customize where results are written.
+A FastAPI WebSocket server that analyzes meeting transcripts in real time using Google Gemini. Two agents run concurrently and stream structured JSON to connected clients: one summarizes the meeting, the other extracts action items.
 
 ---
 
-## 📂 Project Structure
+## Features
+
+- **Streaming WebSocket API**: Results are streamed chunk-by-chunk as the model generates them, so the frontend can render incrementally.
+- **Parallel Agent Execution**: The Meeting Summarizer and Action Item agents run concurrently via `asyncio.gather()`, minimizing total latency.
+- **Structured Output**: Each agent produces JSON validated against Pydantic schemas (`MeetingSummary`, `ActionItemReport`).
+- **Multilingual Support**: An optional translation step pre-processes the transcript into any target language before analysis.
+- **Externalized Prompts**: System instructions live in `prompts/` as markdown files — easy to iterate on without touching agent code.
+
+---
+
+## Project Structure
 
 ```text
+backend/
 ├── agents/
-│   ├── __init__.py
-│   ├── action_item_agent.py    # Extracts tasks, assignees, due dates, and flags issues
-│   ├── meeting_summarizer.py   # Outlines discussion points, decisions, and summaries
+│   ├── action_item_agent.py    # Extracts tasks, owners, due dates, and flags issues
+│   ├── meeting_summarizer.py   # Outlines discussion points, decisions, and summary
 │   └── translator_agent.py     # Pre-translates transcripts to target languages
 ├── schema/
-│   ├── __init__.py
-│   └── meeting_schema.py       # Pydantic schemas (MeetingSummary, ActionItemReport, etc.)
+│   └── meeting_schema.py       # Pydantic models: ActionItem, MeetingSummary, etc.
 ├── prompts/
-│   ├── action_item_prompt.md   # System instructions for task extraction
-│   ├── summarizer_prompt.md    # System instructions for meeting summarization
-│   └── translator_prompt.md    # System instructions for translation
+│   ├── action_item_prompt.md   # System prompt for task extraction
+│   ├── summarizer_prompt.md    # System prompt for meeting summarization
+│   └── translator_prompt.md    # System prompt for translation
 ├── example/
-│   └── transcripts/            # A collection of sample transcript files
-├── main.py                     # Main entrypoint and CLI handler
-├── pyproject.toml              # Project configuration and script entrypoint
-├── uv.lock                     # UV lockfile
-└── .env.example                # Template for environment configuration
+│   └── transcripts/            # Sample transcript files
+├── main.py                     # FastAPI app and WebSocket endpoint
+├── test_websocket.py           # Integration test for the WebSocket endpoint
+├── pyproject.toml
+└── .env.example
 ```
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Prerequisites
 
-* **Python**: Version 3.11+
-* **UV**: Astral's fast Python package installer. If not installed, you can install it using:
+- **Python** 3.11+
+- **uv** — fast Python package manager:
   ```bash
   curl -LsSf https://astral.sh/uv/install.sh | sh
   ```
 
-### 2. Installation
-
-Clone the repository and install the project dependencies:
+### 2. Install Dependencies
 
 ```bash
-cd Gapstars_hack_AI
+cd backend
 uv sync
 ```
 
-### 3. Setup Environment Variables
-
-Copy the template environment file to `.env`:
+### 3. Configure Environment
 
 ```bash
 cp .env.example .env
 ```
 
-Edit your `.env` file and insert your Google Gemini API key:
+Edit `.env` and add your Gemini API key:
 
 ```ini
 GEMINI_API_KEY=AIzaSy...
 ```
 
----
+Get a key from [Google AI Studio](https://aistudio.google.com/).
 
-## 🛠️ Usage
-
-This project defines a CLI command shortcut called `meeting` in `pyproject.toml`. You can run it via `uv run meeting`.
-
-### Display CLI Options
-
-Run with the `--help` (or `-h`) flag to view the available CLI options:
+### 4. Start the Server
 
 ```bash
-uv run meeting --help
+uv run uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-Output:
-```text
-usage: meeting [-h] [--file FILE] [--language LANGUAGE] [--output OUTPUT]
-
-Multi-Agent Meeting Assistant CLI
-
-options:
-  -h, --help            show this help message and exit
-  --file, -f FILE       Path to a text file containing the meeting transcript.
-                        If not provided, the default sample transcript is
-                        used.
-  --language, -l LANGUAGE
-                        Target language for translation (default: English).
-  --output, -o OUTPUT   Path to save the JSON output (default: output.json).
-```
-
-### Run on Default Sample Transcript
-
-Run the workflow on the built-in sample transcript:
-
-```bash
-uv run meeting
-```
-
-This runs both agents concurrently, prints a formatted overview of the meeting summary and action items to the terminal, and writes the complete structured payload to `output.json`.
-
-### Run on a Specific Transcript File
-
-Use the `--file` (or `-f`) flag to analyze one of the transcript files in the `example/transcripts/` directory:
-
-```bash
-uv run meeting --file "example/transcripts/Product Roadmap Sprint Kickoff.txt"
-```
-
-### Run with Translation
-
-Analyze the meeting and translate the output to a target language (e.g., German, Spanish, French) by specifying the `--language` (or `-l`) flag:
-
-```bash
-uv run meeting --file "example/transcripts/Tangent Creative Co.txt" --language "Spanish"
-```
-
-### Customize Output File
-
-Choose where to save the complete JSON results using the `--output` (or `-o`) option:
-
-```bash
-uv run meeting -f "example/transcripts/Product Roadmap Sprint Kickoff.txt" -o sprint_analysis.json
-```
+The server starts at `http://localhost:8000`.
 
 ---
 
+## WebSocket API
+
+### `WS /ws/summarize`
+
+Connect, send a JSON payload with the transcript, then receive a stream of events until `complete`.
+
+**Request payload** (send once after connecting):
+
+```json
+{
+  "transcript": "Meeting: ...",
+  "language": "English"
+}
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `transcript` | string | Built-in sample | The full meeting transcript text |
+| `language` | string | `"English"` | Target language; non-English triggers translation first |
+
+**Event stream** (server → client):
+
+| `type` | Payload fields | Description |
+|---|---|---|
+| `status` | `message` | Lifecycle update (e.g. "Agents started") |
+| `summary_chunk` | `chunk` | Raw JSON text fragment from the summarizer |
+| `summary_done` | `data` | Complete `MeetingSummary` object |
+| `actions_chunk` | `chunk` | Raw JSON text fragment from the action item agent |
+| `actions_done` | `data` | Complete `ActionItemReport` object |
+| `complete` | — | Both agents finished; connection closes |
+| `error` | `message` | Unhandled exception detail |
+
+**`MeetingSummary` shape:**
+
+```json
+{
+  "concise_summary": "...",
+  "key_discussion_points": ["..."],
+  "decisions_made": ["..."],
+  "open_questions": ["..."],
+  "missing_information": ["..."]
+}
+```
+
+**`ActionItemReport` shape:**
+
+```json
+{
+  "action_items": [
+    {
+      "action": "Send brand guidelines",
+      "owner": "Tom",
+      "due_date": "Friday",
+      "status": "Clear",
+      "priority": "High"
+    }
+  ],
+  "flagged_issues": ["..."]
+}
+```
+
+---
+
+<<<<<<< Updated upstream
 ## 🌐 FastAPI WebSocket API Server
 
 In addition to the CLI, the backend exposes a real-time **FastAPI WebSocket Server** to stream agent insights chunk-by-chunk to the client dashboard.
@@ -193,8 +198,30 @@ A test runner `test_websocket.py` is included to verify WebSocket client connect
 ---
 
 ## 🤖 Under the Hood
+=======
+## Testing
+>>>>>>> Stashed changes
 
-1. **Translation (Optional)**: If the target language is not English, the `Translator Agent` translates the transcript first.
-2. **Parallel Processing**: Using `asyncio.gather()`, both the `Meeting Summarizer` and the `Action Item` agents run concurrently.
-3. **Structured Outputs**: Each agent queries Gemini using system instructions loaded from `prompts/` and parses the JSON response into a strict Pydantic model (`MeetingSummary` and `ActionItemReport`).
-4. **Validation & Consolidation**: The results are consolidated into a `MeetingWorkflowResult` object, formatted, and saved to disk.
+Run the WebSocket integration test (requires the server to be running, or uses FastAPI's `TestClient` in-process):
+
+```bash
+cd backend
+uv run python test_websocket.py
+```
+
+The test connects to `/ws/summarize`, sends the built-in sample transcript, and asserts that both `summary_done` and `actions_done` events are received with at least one streamed chunk each.
+
+---
+
+## How It Works
+
+1. **Translation (optional)** — if `language` is not `"English"`, the `translator_agent` rewrites the transcript before analysis.
+2. **Parallel streaming** — `stream_meeting_summarizer` and `stream_action_item_agent` are launched concurrently. Each yields raw text chunks from Gemini's streaming API.
+3. **Chunk forwarding** — an `asyncio.Lock` serializes writes to the WebSocket so chunks from both agents interleave safely.
+4. **Structured parse** — once each agent's stream ends, the accumulated text is parsed as JSON and sent as a `*_done` event containing the validated Pydantic object.
+
+---
+
+## Model
+
+Both agents use `gemini-3.1-flash-lite` via the [Google GenAI Python SDK](https://pypi.org/project/google-genai/).

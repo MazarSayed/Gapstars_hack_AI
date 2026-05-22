@@ -1,0 +1,291 @@
+Impromptu Microsoft Teams Meeting - February 06
+VIEW RECORDING - 48 mins (No highlights): https://fathom.video/share/s47dGSDhuwetoY5RTxJfFyTipzzAxN7c
+
+---
+
+0:00 - Mohamed Ilham
+  I removed that one too, so our new output is, this is the new point in code for that part, I had a function, that means after getting the company URL, what we can do is, if the question mark found there, we can remove that entire remaining part, inclusively the question mark, so the logic I used here.  Hold on, hold on, hold on.
+
+0:26 - Dinuke (Guest)
+  So, just to, just to kind of clarify, so kind of, okay, return, da-da-da-da-da, okay, right, all right. Okay, so, as it now, go to the definition file with regards to what are the parameters, what you fed in.  So, Ilham, I need to train you a little bit how you talk, yeah. So, the first thing is, when you want to say something, what is important for someone to be understanding what you're going to say, okay, need to start from the, what is the inputs what you give, what we...  Will you kind of pick it up in terms of as part of your design, how that particular inputs will be picked up?  Onwards from there, you need to explain what logic do you use to do that? Possibly take a pause there, need to explain, this is the output, what is coming up, any questions?  Good. That's done. Then go to the next stage. So always assuming hum, when you are talking to someone, they are not the ones who written the code.  Yes, we can understand the code from by looking at it a bit, but it's important you learn that. So you first start off with the problem and then dissect that problem from the input stage by stage.  So you're taking everyone who is in this call listening in a journey in clear English. So that's very important.  You learn through everyone as well. That is important that that's the quality what we need to build. So can you take a fresh start, if you don't mind, with this input?  Cool. But how you would explain that, please? Yeah, sure.
+
+2:04 - Mohamed Ilham
+  So, what the problem is, so initially, in our file, the yesterday's meeting, I submitted the particular job scraped new, this one.  So, here, I included all the job scrapping websites and scrapping all the jobs here. So, what the issue we found is, I noted here, so, when we are getting the, this is solved here.  So, when we are getting the particular URL, you know, we can get the company URL, so, when we go to the, our previous output, so, we can come here.  So, how we can find our issue is, as I said, when we are getting the LinkedIn company URL, so, this one, actually, it's new, yeah, this one.  So, when we are getting the company URL, okay. so, So we can see here, this is the company URL, so this part is enough to search the company as we yesterday tested.  So the remaining part is unnecessary, but when we are scraping the website, the entire strings comes. That's why what we want to do is we have to process the URL and cut the remaining part, including the question mark, that means this part.  So for that, I added a particular function in the new file. And also, issue is the particular, we want to remove this one for the only for the LinkedIn.  So what I did is, first of all, I just fragmented the entire video script. So for that, we can see here the Indeed script, LinkedIn script, and Seed script.  So there are three files. So we particularly consider the LinkedIn script. Okay, so we can see here, it's all the same.  So these are the particular payloads, like what is the parameters that we are giving. So in the search queries, I initially put startup technology, but we can add some things too.  So in the below part, I just put a loop for that for doing for each query in this particular list.  That is OK. And another query Australia. And after, for the LinkedIn, I added four pages, and other things are same.  So it will be stored in the fresh leads. So that is also same. So this is the part to solve the issue.  So this is the only change rather than other files in LinkedIn. So here what I'm doing is, after we have function here to get the company URL.  After getting the company URL, we have to normalize it. Before normalizing it, what what I'm doing is, Thank After getting the company URL, it will check whether the question mark is in the URL.  If it is the question mark in the URL exists, then what it will do is, it will cut down the question mark and the remaining.  After cutting that, we will get a particular URL like this. So I have an example for that book. But question there, question there, as splitting that particular URL from the question mark, is it consistent?
+
+5:36 - Dinuke (Guest)
+  Yeah, so it is working.
+
+5:40 - Mohamed Ilham
+  Right.
+
+5:40 - Dinuke (Guest)
+  At all times, the company name is, the rest of the parameters, typically question mark will come in as part of the search parameters, right, on that one.  So all the search parameters after the company URL, that's confirmed, is it? Yeah, that is confirmed.
+
+5:55 - Mohamed Ilham
+  Okay. Okay. Okay. Okay. And then, um, when you have the...
+
+6:00 - Dinuke (Guest)
+  So in like, let's say, at all times, if there are companies which are having multiple names and all of it, does it also the spaces, how do they get padded in LinkedIn?
+
+6:13 - Mohamed Ilham
+  case, it is like a dash, small dash. Hyphen. Okay, fine. Hyphen is the one.
+
+6:18 - Dinuke (Guest)
+  Okay, fine.
+
+6:24 - Mohamed Ilham
+  So it's finding the exact company. Right. Got it.
+
+6:29 - Dinuke (Guest)
+  Sounds good. Sounds good. Okay, good. Clear. Good. And then as part of the scrape, which has now been done, when we do that, you got that.  That part is good. Continue on the validation. How do you validate the company? Just clicking that one.
+
+6:51 - Mohamed Ilham
+  Okay. But normally randomly leaving the companies, that's also okay. Okay. Validated. Then you know, I'm just clicking the normally.  So. That is also okay. but, uh, in the, in the script, so LinkedIn, that's it in that indeed, what the issue is, it is not revealing the company name.  Oh, sorry. Indeed is okay.
+
+7:12 - Dinuke (Guest)
+  Indeed.
+
+7:13 - Mohamed Ilham
+  So it's indeed here. You can go to the output. So this is, uh, it is not revealing the company you are.  So, because, uh, it is some, uh, securities and something like that. So when I take this one, you can see the website here.  Uh, we want to see, we want to click this one. So then only we have to go there. So, uh, the thing is, there are so many links are there.  Uh, so that's why I couldn't obtain company URL, a company, company local page, which comes up.
+
+7:47 - Dinuke (Guest)
+  It doesn't provide the direct company website, right? Yeah.
+
+7:51 - Mohamed Ilham
+  Another thing, uh, in some cases, like, uh, uh, if we click here, yes, it's like, we have to, it is like a verification.  Something like that. So that is also a curse. Can you go to that particular detail link?
+
+8:06 - Dinuke (Guest)
+  I'll show you that when you go in there. No. Go to Indeed. Indeed.
+
+8:15 - Mohamed Ilham
+  If you can go to Indeed. Yeah.
+
+8:17 - Dinuke (Guest)
+  Yeah. Go to the Ellen's Company. Click on that. And can you go to Ellen's website, the link under that?  That's possibly. Typically Indeed has that particular widget. have to kind of look at it and pick it up from there if you are too.  But do you need the website? Do you need that? No, I think we don't need it.
+
+8:56 - Mohamed Ilham
+  Only the LinkedIn only we need because. So. But why we want a particular company URL is to give an input for the API.  So in the API, LinkedIn URL exists, but other URLs, I don't know. So why do you need the company URL?
+
+9:24 - Dinuke (Guest)
+  Only for the LinkedIn we need.
+
+9:29 - Mohamed Ilham
+  Because you are trying to find the jobs under that company?
+
+9:33 - Dinuke (Guest)
+  Is that the reason? No.
+
+9:37 - Mohamed Ilham
+  This means it's a unique parameter for the particular person because we want to find a particular user using the company name.  But rather than giving the company name, we are giving the company LinkedIn ID. That is the reason.
+
+9:52 - Dinuke (Guest)
+  How do you define a unique person then when there are 1000 people working for a company? And if you don't know which person is...  And Because they can be corporate accounts, right? It's not published from a personal account. How are you going to verify that?  How are you going to ensure that?
+
+10:15 - Mohamed Ilham
+  For that, we are having particular parameters in the enrichment part, but the person's job.
+
+10:26 - Dinuke (Guest)
+  Okay, I'll allow you to explain a bit more on the functionality. Yeah, sure.
+
+10:37 - Mohamed Ilham
+  So when we go to the enrichment, we can give the payload as the job role and the company name.  There's one option. And in the Apollo, when we see the conflict enrichment, we have to find him using his company and the particularly the Apollo.  finding the company, some company names will not exist in the Apollo.
+
+10:58 - Dinuke (Guest)
+  Mm. It means it is something difficult.
+
+11:01 - Mohamed Ilham
+  It is like P-T-Y-L-T-D. So names are different. in the case, LinkedIn ID is remaining same. So whatever the company name, the LinkedIn ID is same.  So rather than leaving the company name, it is better to get the contact using the LinkedIn ID. That is an idea.  I see.
+
+11:22 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Got Dinuk, what happens is sometimes when we try to extract based on company name, which is not a unique identifier.  Got it. might like exactly bring the company. So that is why I instructed Ilham to capture LinkedIn company. Is the company ID itself because it's a unique ID.
+
+11:41 - Dinuke (Guest)
+  Got it. Got it. Got it. That's clear. Yeah. Good. All right. Good. Okay. So Ilham, if I may ask you, if I may ask you another question.  So when you are, so assume that as part of the validation, when you're kind of want to enrich it's not.  Now, so there are a few areas to enrich, right? So first is we've spoken about whether we can pick up specific person, details, or party who has published that particular advertisement from the advertisement itself, right?  That's one way. Second way is enriching via Apollo, right? Apollo or Lusha or whatever enriching via that, right, via enriching tool.  The third way is possibly using LinkedIn as option to enrich as well. Which is a bit difficult. I would believe that's not necessarily that practical.  Which option are we still looking at? Only Apollo has the option to enrich, or are we looking at the first and the second both?  If we can scrape the addend from the context of the addend itself, can we allow it to be, give the information to an LLM, and then from there we kind of look at it for a quick order?  Or we can just, we don't need to give it to LLM. We can just, uh, to text pass and then after that identify whether there are any emails within the text and numbers within the text and the person within the text which we can pick it up.  Are we considering that as well? The thing is we are finding the decision maker.
+
+13:19 - Mohamed Ilham
+  So sometimes in the in the description part we may find some other numbers like HR, some other persons. So our main idea is to find the decision maker.  For that we are using initially our approach was API API. But again, we are finding another option that is a loser.  So I'm seeing the recommendation part still. Sure, sure. That's fine.
+
+13:45 - Dinuke (Guest)
+  That's fine. Understood. Okay. No, have a point there. For sure. That's fine.
+
+13:52 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Just to end on what we discussed on the last call as well. We have Yeah, we need to, like, this particularly identifying the enrichment part of the decision maker, where we're trying to identify the particular emails or contact data for, you know, decision maker given a company, for a given role as well.  So we need, that should be related to the role as well, right? In that scenario, what I instructed, Dilham, is to choose around 25 companies and then use the API and see if we can, how accurately we are able to find the, you know, respective decision makers and then compare it against other, you know, API providers, maybe Lucio or any sort of, so that we can come to a conclusion, okay, out of the comparisons we have done, this API seems to be performing better, so then we can go ahead and if we need to make a subscription to scale it in, you know, use case, we can do that.  So we need to make, do that exercise and validate first. Yeah. Yeah, that's important.
+
+14:59 - Dinuke (Guest)
+  Can I. Clarify when you are saying that to do this verification, what's the architecture which you guys are thinking?  are thinking about just running an API call and then after that doing a validation, or are we thinking about any agentic capability that we want to run it, or nothing agentic I'm seeing as it now per se?
+
+15:26 - Mazar Sayed (mohammedmazar11@gmail.com)
+  So I have given some supporting materials for him to study, so I haven't went ahead and asked him to build any layer of that.  But in terms of validation, we are not doing any validation per se for now. In terms of, example, are we looking at the right person, or are we looking at extracting the right companies, and so on.  So there are like no validation layers added to it. So whatever like lam has validated is more like manually.  By like review. Through LinkedIn and looking at this extracted information in terms of the agent declare what what I would think through is we need to like these are more like individual functions now and then it will be added to an agent more like actions like tools and then you know kind of we will execute the tool.  Sometimes they'll be human in the loops just for the sake for example you're extracting and showing all the list of jobs and as a user you select them or you kind of reject them and then you send back back to the agent so the agent like does the next step or some sort of like you know we need to think through how the user you know friendliness should be like that is a based on that journey that architecture will be deconstructed so currently it's more like functions for it and then we will plug them into an agent based on how we are trying to  Make it from a user perspective, so that we need to come up with that thought process on how the user will have to use it, and based on that, how the human loop and all those comes in, we would design the architecture.  Yeah, yeah.
+
+17:19 - Dinuke (Guest)
+  So few areas on that particular one when you are thinking about it, and specifically because Ilham, for your consideration, and I think I can come back.  First is, I'm quite keen to make sure that there's a capability which is being built up. Even though we can do it via functions, when we look at it, validation layer, few areas of validations, we need to think about it.  How do we do that validation layer on an agentic capability? At the very beginning, We may not have a massive database to kind of go compare against, and then after that, provide a confidence level or something.  That may not be the case. One way to kind of look at it is possibly do a bit of a Google usual search as well, and then after that, scrape that particular information and provide that particular role match confidence level to be put up, and then paginate to find that particular right person until the right match is being identified, and then after that, consider whether that is the right party.  But if you are pulling from, when you're pulling from Apollo, we need to make sure that the designations are aligned.  So designation match validation is quite valuable. So the question is, how do we allow the designation match and identification of the the right person who is within that organization?  So let's say, example. For if you are trying to get an AI engineer's position being kind of filled, how do we know whether the company has, do we need to reach you to the head of, whether there is a head of data and AI, whether there is a head of technology, whether there is ZTO, and if all three are there, whom should we talk to?  Right? So in that example, then what is our decision to kind of provide? So then I would rather think without burning Apollo credits as well in too much, to a certain degree, when you are kind of looking at it, need to see looking at the API to a certain degree, whether the contact information's are verified and enriched, verified in Apollo itself, and based on the particular roles in that particular context, like we see, these are the correlated roles, which is related to the AI person.  So these are the roles that we are going to to do. We and pass into the filter and see which are the responses which we are getting from Apollo, which are verified email and verified contact.  And then we try to kind of pull, not everything, a sufficient number, the most confidence level being the highest one.  So that can be a small agent which we can write to pull that information as against we just pulling whoever who comes up because then we will just burn a lot of capital credits in doing so.  So I would like a little bit of thinking on that so that we are enriching that particular one to the right state.
+
+20:42 - Mazar Sayed (mohammedmazar11@gmail.com)
+  So we can do a validation in terms of like if we are reaching out to the right person, that validation can be done.  But in terms of contact, in terms of like, I can just do a web search and find out. You know, like certain people in that company, in terms of the particular role, and then we can do an AI web search, and then using that we can identify who is the most given the role and the description, like, you know, the designation, who is the person who is out of the list we have searched, who is the right person to see, and then we can use it.  Yeah.
+
+21:25 - Dinuke (Guest)
+  Yeah.
+
+21:26 - Mohamed Ilham
+  Parallelally, I'm maintaining another enrichment file that is using the LLM API. what they are doing is, it is categorizes the decision makers based on their role, like development, product, HR, and those things.  And when using our lead, if the particular job role is, like, related to software engineering or something, then it will, which it matches mostly, the tool of product or HR, then it is decided based on the strength.  So, which, who is the best person to contact it is a llm ranks then after we can find that one too this is i'm parallel maintaining this one but i've not applied it yet so am i audible yes you are yes you are yes you are don't worry go ahead okay yeah i need sure yeah so my side office is a little bit noisy so i put myself on mute don't worry yeah okay so that's what approach for the in that case which means uh which which particular decision maker we want to approach so according to the job role we can decide that the this i thought you are kind of breaking up a bit um what i'm saying is
+
+23:00 - Mazar Sayed (mohammedmazar11@gmail.com)
+  And once, then it's like, you're just using it to, yeah, you're audible.
+
+23:09 - Dinuke (Guest)
+  Okay. Is it, Mazar's line is a bit slow, isn't it? A bit of a lag. Yeah.
+
+23:20 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Any email now? Yeah, better.
+
+23:25 - Dinuke (Guest)
+  Oh, no better. Okay.
+
+23:27 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yeah. So this part, I can, like, we could enhance it to Ilham. This is just basically what I feel like is you're choosing one of these categories, whether it's product HRDiv, and then you're passing this whole list into an LLM.  Then LLM decides based on the given role, which of these, whether to call, like, talk to a CTO, VP, and so on, right?  So that's what you're doing currently. Yeah, it's not doing it, but I just plan to, because, uh...
+  ACTION ITEM: Add web search to decision-maker ranking; integrate w/ LLM - WATCH: https://fathom.video/share/s47dGSDhuwetoY5RTxJfFyTipzzAxN7c?timestamp=1437.9999
+
+24:00 - Mohamed Ilham
+  Ranking, based on the ranking, we can decide which decision maker. So we could do it in a better job.
+
+24:08 - Mazar Sayed (mohammedmazar11@gmail.com)
+  I'll instruct you on that. Not based on just LLM, but we are using WebSearch just to bring the exact people who are really available as well.  So like regarding your question of adding validation, we could validate on the person, like in terms of reaching out to the right person, not some like, you know, just for the sake of reaching out, we are reaching out to someone not relevant to the department which we are hiring, like which the role is for.  But in terms of like, in terms of contact information, only way to validate is like, I know, I have tried to, previously I have tried to kind of identify contact information through LinkedIn, which is kind of more like  You know, tough job because one of the, like, usually, like, informations are not available in LinkedIn, particularly email and phone number.  So, like, certain APIs like this provide that also is not 100% like, you know, always able to find out.  So if you are to do a validation on the, if you are right, like, taking out the right email, we might need to use two APIs where we kind of cross-check between them.  But I think Apollo also provides a variable input. Correct me if wrong, Ilham, where when you are, like, calling the API, you can pass a variable call is verified, true.  So in a way that it only provides verified email contacts. So, but to verify, like, from our side, if we are to validate, we need two APIs, like, to just cross-check between them.  Okay. Okay. I don't find any other way to like, you know, look at if email is like exact email of the person, but we can check if the email is a valid email, but not sure like, you know, if it is the person plus the email in the same, like, you know, this email refers to this person's contact.
+
+26:18 - Dinuke (Guest)
+  If I may, Mazar, on this particular initiative, you think about it is validity, validity is a big issue, what do we lose if the validity is not there?  So I would, for me, if the validity is not there, there will be a bounced email or someone who's kind of receiving the email not really relevant.  But more important thing is, can we not burn credits, right? Otherwise we'll just, that's why I was thinking if our verification or the validation agent or a function what we write can ensure that we kind of write that basically to kind of see whether that is validation the  So if it is verified, then you kind of look at it, then you kind of assume that if think about the verified flag as well as the availability of phone number and email, both that probably might be, then we have to give a little bit of a weighting what we give between the options what we have on the contacts, what are getting, filtered out there, right?  So we kind of pick a couple of specific roles, chuck it into the filter, then we get a list, maybe we get 10 results, but we don't want to call all 10 or send email to all 10.  Let's say we just want to pick the highest one with the highest confidence, the highest three, then we have to figure out a logic to build that up.  Right? Okay. That is, so then my bet is we think about verified flag. Let's think about The availability of the mobile and the mobile, as well as the number of email both, and position-wise relevance index, something like that, right?  So we put that into a context, and then we identify who has – because if they don't have the mobile, they will also say no mobile.  Maybe I should say that there is no mobile available. Okay. So then we can eliminate some of those low-hanging ones and take the top three.  Okay.
+
+28:39 - Mazar Sayed (mohammedmazar11@gmail.com)
+  So I'm thinking we can possibly go in that angle.
+
+28:44 - Dinuke (Guest)
+  Do we need to have a verification with another reference point at this juncture? Let's take the risk-masa without doing it.
+  ACTION ITEM: Build enrichment validation: Apollo email_status/has_phone, role relevance; rank top 3; document 20–25 results - WATCH: https://fathom.video/share/s47dGSDhuwetoY5RTxJfFyTipzzAxN7c?timestamp=1730.9999  Yeah, I agree.
+
+28:57 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Okay. High Very, All right. So we need to work on that in terms of like, you know, bringing that element what you mentioned in terms of the verification part.  I need to check if I think I saw something like is verified variable. I mean, you need check on that.
+
+29:21 - Dinuke (Guest)
+  Yeah, so if you probably have a screen of very, give me a second, I can show you that as well, probably, but it's not on the, it's not possibly on the, see if I have something.  Yeah, and the API should have a flag for verification. Yeah, thank you.
+
+30:03 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yeah, there is something called email status in the response, which says when invite. Yes, and then can you go to the other as well, the mobile as well?
+
+30:17 - Dinuke (Guest)
+  They don't have the mobile on the same level. It is an additional separate level, is it? Can you scroll down on the people enrichment one?
+
+30:25 - Mohamed Ilham
+  Yeah, it is enrichment one, sometimes you may have the purple sea, I think.
+
+30:43 - Dinuke (Guest)
+  Country phone, yep, false. Yep, has phone, false, which means they don't have a phone.
+
+30:54 - Mohamed Ilham
+  Actually, they don't have a phone, other than I did not include it in. in this particular details that's what i think is it okay because uh in this particular response we cannot uh see a particular record that phone related something we have the email extracting the phone number is a separate api call than an email isn't it yeah here not our phone is included that's the thing okay by default endpoint does not return personal emails or phone numbers it has stated right yeah but uh what actually uh needed output is uh email because we are sending the email finally we are sending the email only correct the corporate email is what we will be getting at the beginning yeah that's correct we don't need the phone right but i'm saying is why i say it because you are saving that into a database and at the yeah
+
+32:00 - Dinuke (Guest)
+  Data point, if you want to kind of target that company and build a relationship and have a condensation, even if they don't respond, then further to that, it is possible for us to then pick the phone number, pick the phone number that can be even done manually, or even we can just take it on bulk.  I believe it's beneficial to do that.
+
+32:23 - Mohamed Ilham
+  Yeah, but using the Lucia, I think it is available, think the review phone's true.
+
+32:30 - Dinuke (Guest)
+  Yeah, review phones are available on that one, but there's a separate API call, I believe, as well, similar to the other.
+
+32:36 - Mazar Sayed (mohammedmazar11@gmail.com)
+  They also have a review part. Apollo also has a separate one, right?
+
+32:43 - Dinuke (Guest)
+  I don't know, like in the same one, you can mention reveal phone number parameter.
+
+32:49 - Mazar Sayed (mohammedmazar11@gmail.com)
+  That's it, see, reveal phone number parameter is try the emails and phone numbers.
+
+33:02 - Dinuke (Guest)
+  Okay, so good. I understand that we need to kind of do this part, and we probably will have the approach that we are taking in writing into both and trying to kind of look at which one is revealing better results and the ease of use.  That's okay. The important part is, Ilham, you may have to kind of do a little bit of a study of this and then quickly do that and then verify that for some companies of interest.
+
+33:32 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Please document, like, take a list of maybe 20-25 companies and document on, like, you know, how the, like, results look like so that we can make a target edition.  All right.
+
+33:50 - Dinuke (Guest)
+  Can we try to see whether we can, shall we have a drop-dead date, Masaya and Ilham, to get this to a certain degree running and up and running?
+
+34:10 - Mohamed Ilham
+  So other than the enrichment, other things are working for now.
+  ACTION ITEM: Build Streamlit UI: pre-config, daily leads, human approval, send, status/history, hyper-personalization - WATCH: https://fathom.video/share/s47dGSDhuwetoY5RTxJfFyTipzzAxN7c?timestamp=2068.9999
+
+34:17 - Dinuke (Guest)
+  The other part is kind of generating a kind of a hyper, hyper, what do call it, personalized email. Right, so that's a little bit of another area which we need to use a bit of AI as well.  That's okay.
+
+34:39 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Ilham, are you familiar with Streamlit? Yeah. Okay. Can you try to create a web application out of these functions?  In a way that maybe, but Dinuk like I want to know like in terms of this process, right? How does it how does the user interact with the whole process here?  Does he like just go in and, okay, look for an industry or the country or any, how does that look like?  And then we are in between the process. Where does he get involved? So is there like, can we like have a user story in terms of what I am looking at at the beginning is that we will have a So ideal state is we kind of looking at it.
+
+35:34 - Dinuke (Guest)
+  Number one, defining, we will do a definition of some of the roles which we are after and do a pre-configuration of the parameters.  It does first create a list of scripts and the possible leads into a leads table that needs to be looked at by someone as a human.  And we need to give a parameter, we need to set a parameter to trigger the conversations, right? So where the user will come in is only at that time.  And then it kind of goes out from one of our email boxes at a slow pace. Okay. So it's the...  Yeah.
+
+36:22 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Yeah, go ahead. No, what I was saying, initially you had the parameters and search criteria as well. Yeah, the initial parameters and search one can be one time, right?
+
+36:34 - Dinuke (Guest)
+  Mazar, we don't need to kind of do it every time, right? Yeah, Correct. we do one time. Then daily is that particular lead list.  comes in to visualize it coming into a table. And it can be even a Google Sheet, I don't mind, right?  And ideally... Heshan, is there a CRM where we can push this to? No. No. No.
+
+37:01 - Heshan Fernando
+  I'm not sure, probably we have some, we can use some, but without complicating it at the beginning, just let's say then we are pushing it into a simple table masa or a kind of even a Google Sheet is find masa and the leads, right?
+
+37:20 - Dinuke (Guest)
+  Ideally a simple application, if there is a possibility of simple application where we trigger that, where we have a list for today's workbench, you kind of populate that into a today's workbench.  And then you can click which are the ones, let's say Heshan clicks which are the ones we are going to send the emails to and trigger one button.  With that, then the rest of the workflow will trigger. Okay, okay.
+
+37:43 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Right? Now that's the...
+
+37:46 - Dinuke (Guest)
+  The emails, right?
+
+37:47 - Mazar Sayed (mohammedmazar11@gmail.com)
+  That's the email, yeah, that's the email, yeah. So, human intervention, so after the input, the human intervention comes as we do the enrichment and everything, and then you have, as a human, when you come and look at what's...  which company and whom I'm contacting and maybe the email content if it needs to be, so you're looking at that endpoint before sending that email.
+
+38:11 - Dinuke (Guest)
+  Yeah, correct. that's what I was thinking, if we are putting it into something like a Google Sheet is easier, because you can generate that particular auto content as well, the email content as well, and then put it up there.
+  ACTION ITEM: Define target roles/parameters; coordinate w/ Ilham on Streamlit UI - WATCH: https://fathom.video/share/s47dGSDhuwetoY5RTxJfFyTipzzAxN7c?timestamp=2311.9999  if someone wants to edit that, then just edit it. And then after that, you can send it across. Okay.
+
+38:38 - Mazar Sayed (mohammedmazar11@gmail.com)
+  Good.
+
+38:42 - Dinuke (Guest)
+  Okay, I'll talk to Ilham once again on that. Thank you. Thank you. Appreciate that. Masa, you are going to get started on Monday with the other part as well.  So we'll probably need to set a couple of things on that for Monday. So we'll have to kind of Ilham on this particular piece of the work and all of it.  We'll have We'll So let's try to kind of get this particular one, if possible, over the next week, see how much we can finish this off and then get it up and running, right?  Yeah. Yeah. Okay. Given now for these particular areas, we'll need to kind of tie this back into the content strategy as well, and we need to kind of look at a holistic mechanism when we are kind of putting ourselves up.  We need to also tie that back into the Cientra website, to the Cientra's kind of positioning and everything, what happens, and the content strategy, what we have.  So we need to channel our energy in both the directions so that we are not really kind of just for the sake of sending emails and bombarding someone's mailbox and not getting value.  So continue we need. can get here. Oh, I you've the I Thank Thank Bye. So we'll need to kind of, once this is up and running now, it needs to be a collaborative exercise in terms of which market are we shooting, which, so my intent is we should be able to try and see, and we need to have some targets as a T, like from this exercise in making sure the conversions which comes up, so where this mode was made in it, Heshan, and then collaborating on that would be Lam and Naufa.  So how do we kind of get the conversion being in the right state, so people kind of responding to the email.  So we have to be mindful about not bombarding and so when emails are to be sent as well, we can't be sending the same email.  So we have to be having a history of the previous emails sent to the same company. And what is that particular email structure and the evolution, how that particular one is going to be created.  So there will be some work, Ilham, you may have to expect in identifying with the emails. I see. You can't have the same template and all of it to send it, because you might be sending three emails to the same person, and there's a little bit of a journey, like today we sent an email, then in maybe four days' time, a little bit of a case study what we present to them, that's where the content strategy comes into play, and then how do we present that particular one to them, then it's going to be possibly a kind of another call to action activity, what we are kind of stating that try to see whether we can create a hook, and then the following up is going to be probably pushing that into that same lead register, saying no responses, or not responsive, and then after that try to trigger someone from our team to give them a call, if that is a, so then we kind of have a flag, so which can probably allow us to consider to give them a call, right, so you think about it, then it becomes more usable, right,
+
+42:00 - Mohamed Ilham
+  which we use as an application we can use it yeah sure but uh this is the actual lead result so initially this is so here uh the company name and the email status over the email sent or not and the uh particular method whatever we did so we can extend it uh like uh the email send date when it is sent and uh rather than that how can we expect so then the the person is needed so you need to see who have you sent uh where in which company and then i would rather see in the same lead database itself it's as a status what is to be sent down with the date date right yeah and whether the delivery status was successful or not uh this this was the end of the end of the point so this is after everything the particular result uh csv if you you have a if you have a delivery failure yeah
+
+43:00 - Dinuke (Guest)
+  How would you track that?
+
+43:01 - Mohamed Ilham
+  Yeah, initially it is like the outreach approval point, it is like draft. So after the particular user, the sender, or after the human intervention, he will set that this particular draft is app code.  So for that only we are having the send outreach option. Yeah, I understand that.
+
+43:23 - Dinuke (Guest)
+  Yeah, I understand that. My question was a bit different. Okay, so draft to send is fine. That means your SMTP call has been successful.  It doesn't mean to say you are not going to get an undelivered response. You can get an undelivered response because the client's mailbox is no longer active.
+  ACTION ITEM: Check SMTP bounce/delivery tracking; report feasibility to Dinuke - WATCH: https://fathom.video/share/s47dGSDhuwetoY5RTxJfFyTipzzAxN7c?timestamp=2626.9999
+
+43:50 - Mohamed Ilham
+  You know what I mean, right?
+
+43:57 - Dinuke (Guest)
+  Yeah, so then if we kind of received, so we need to just. So just take a look at it and look at the SMTP tags as well and whether we can create a mechanism to catch whether we got a undelivered message or response on that is a kind of a consideration, right, the consideration to have.  Check on that, I'm not very sure whether we can because it's from the mail server you can catch it then you have to connect to the mail server.  Yeah, I experienced that one too.
+
+44:29 - Mohamed Ilham
+  So when we are sending a wrong email address, it is not delivered but we will get that one. So if you are sending two emails, one is okay, it will send.  If one is wrong, it will be delivered as not send, check the email id something. I experienced that one.  Yeah, so let's try to catch that.
+
+44:49 - Dinuke (Guest)
+  If can, if can in the sense that's important, you may have to sometimes connect to the mail server to do that.  Right? Right? It most likely we may have to. We'll be The last part is in the email. When we are creating the email, as we hyper-personalize it, can we also look at some deep links in that particular email itself so that we can consider tracking the person's engagement with the email?  How feasible would that be? I've only used it in tools like MailChimp, but I have not done anything like that.  Yeah, it's a bit of a mail tracker in a way. So, Ilham, maybe that's another follow-up question to check what's the piece of feasibility.  We don't need to kind of build, we're trying to kind of, sometimes we have O-engineering a bit to kind of build up the best in that particular sense.  At the start, what is most important is the scraping, screening, and getting that particular one in, and then onwards, that's the first version.  The remaining ones which I'm talking about, we can have another version coming up, Ilham. So let's not convolute ourselves, let's build the first version, take it to a steady state and start working on that, and then during that time, we can build the next version.  Yeah, sure.
+
+46:31 - Mohamed Ilham
+  Enrichment part is fine. We can check that one.
+
+46:35 - Dinuke (Guest)
+  Yeah, so enrichment, email hyper-personalization needs to be done, and the validations, so the enrichment validation is probably the same thing that we're talking, and the email part, and then you're putting up into a UI where the data can be verified by the user, and the user can be interacting with that.  Okay. That these three things can be. Target for next week and sort it out. Okay. Good. All right, my friends.  Thank you. Thank you. Okay. Thank you. Catch you guys later. Thank you.
+
+47:21 - Heshan Fernando
+  Okay.
+
+47:22 - Dinuke (Guest)
+  Bye-bye.

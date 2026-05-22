@@ -1,0 +1,70 @@
+Impromptu Microsoft Teams Meeting - February 06
+VIEW RECORDING: https://fathom.video/share/s47dGSDhuwetoY5RTxJfFyTipzzAxN7c
+Meeting Purpose
+
+Review lead scraping progress and define the enrichment strategy.
+
+Key Takeaways
+
+  - LinkedIn URL Normalization: A new function now cleans scraped LinkedIn URLs by removing query parameters (e.g., ?trk=...), which are unnecessary for API calls and can cause lookup failures.
+  - Enrichment API Validation: The team will validate Apollo's enrichment API by testing it on 20–25 companies and comparing results against alternatives like Lusha to select the best provider.
+  - Cost-Effective Enrichment Strategy: To conserve API credits, the workflow will use Apollo's is_verified flag and has_phone status to filter for high-quality contacts before fetching full details.
+  - Human-in-the-Loop Workflow: A user-facing UI (e.g., Streamlit, Google Sheet) will enable manual review and approval of leads and email drafts before sending, preventing irrelevant outreach.
+
+Topics
+
+LinkedIn URL Normalization
+
+  - Problem: Scraped LinkedIn company URLs contain query parameters (e.g., ?trk=...) that are unnecessary for API calls and can cause lookup failures.
+  - Solution: A new function removes all characters after and including the first ? in a URL.
+  - Rationale: The core URL (e.g., linkedin.com/company/company-name) is a unique identifier, making the query string redundant.
+
+Enrichment Strategy & API Validation
+
+  - Goal: Find the correct decision-maker for a given job role and company.
+  - Challenge: Company names are not unique (e.g., "PTY LTD" variations), making them unreliable for API lookups.
+  - Solution: Use the unique LinkedIn company ID as the primary API input.
+  - API Validation Plan:
+      - Test Apollo's enrichment API on 20–25 companies.
+      - Compare results against alternatives like Lusha to select the best provider.
+      - Document findings to support the final decision.
+  - Cost-Effective Enrichment Logic:
+      - Rationale: Avoid burning API credits on low-quality contacts.
+      - Process:
+        1.  Filter initial API results using Apollo's email_status (e.g., verified) and has_phone flags.
+        2.  Rank remaining contacts by relevance (e.g., role match, contact availability).
+        3.  Fetch full details only for the top 1–3 highest-confidence contacts.
+
+Workflow & UI Design
+
+  - Architecture: The system will be built as a set of individual functions ("tools") that can later be integrated into an agentic workflow.
+  - Human-in-the-Loop Process:
+    1.  Scrape: Daily job scrapes populate a lead database.
+    2.  Enrich: The system finds decision-makers and drafts personalized emails.
+    3.  Review: Leads and drafts are pushed to a UI (e.g., Streamlit app, Google Sheet) for manual approval.
+    4.  Send: Approved emails are sent.
+  - Future Enhancements (V2):
+      - Email Tracking: Track opens and clicks via deep links.
+      - Bounce Handling: Catch SMTP delivery failures.
+      - Follow-up Cadence: Implement multi-touch email sequences.
+
+Next Steps
+
+  - Ilham:
+      - Validate enrichment APIs (Apollo vs. Lusha) on 20–25 companies and document results.
+      - Build a UI (e.g., Streamlit) for manual lead and email review.
+      - Integrate the cost-effective enrichment logic into the workflow.
+      - Implement hyper-personalization for email generation.
+      - Investigate feasibility of email tracking and bounce handling.
+  - Mazar:
+      - Support Ilham on the enrichment validation and UI development.
+  - Dinuke:
+      - Set up Monday's tasks with Mazar.
+  - Heshan, Ilham, & Naufa:
+      - Collaborate on content strategy to improve email response rates.
+Action Items
+  - Add web search to decision-maker ranking; integrate w/ LLM - WATCH (5 secs): https://fathom.video/share/s47dGSDhuwetoY5RTxJfFyTipzzAxN7c?timestamp=1437.9999
+  - Build enrichment validation: Apollo email_status/has_phone, role relevance; rank top 3; document 20–25 results - WATCH (5 secs): https://fathom.video/share/s47dGSDhuwetoY5RTxJfFyTipzzAxN7c?timestamp=1730.9999
+  - Build Streamlit UI: pre-config, daily leads, human approval, send, status/history, hyper-personalization - WATCH (5 secs): https://fathom.video/share/s47dGSDhuwetoY5RTxJfFyTipzzAxN7c?timestamp=2068.9999
+  - Define target roles/parameters; coordinate w/ Ilham on Streamlit UI - WATCH (5 secs): https://fathom.video/share/s47dGSDhuwetoY5RTxJfFyTipzzAxN7c?timestamp=2311.9999
+  - Check SMTP bounce/delivery tracking; report feasibility to Dinuke - WATCH (5 secs): https://fathom.video/share/s47dGSDhuwetoY5RTxJfFyTipzzAxN7c?timestamp=2626.9999

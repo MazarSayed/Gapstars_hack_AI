@@ -40,6 +40,22 @@ class MeetingSummary(BaseModel):
     )
 
 
+class JiraTask(BaseModel):
+    title: str
+    description: str
+    priority: ActionPriority = ActionPriority.medium
+    assignee: str = "Unassigned"
+    due_date: str = "Needs date"
+    component: str = "General"
+
+
+class FollowupResult(BaseModel):
+    email_subject: str
+    email_body: str
+    jira_tasks: list[JiraTask] = Field(default_factory=list)
+
+
 class MeetingWorkflowResult(BaseModel):
     summary: MeetingSummary
     action_report: ActionItemReport
+    followup: FollowupResult
