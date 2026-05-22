@@ -1,22 +1,12 @@
-"""
-Meeting Summary & Action Workflow
-Epic 8 — two agents running in parallel:
-  Agent 1: Meeting Summarizer  →  key points, decisions, summary, open questions
-  Agent 2: Action Item Agent   →  action items, owners, due dates, flags
-  Translator Agent             →  optional pre-translation to target language
-"""
-
 import asyncio
 import json
 import os
-import argparse
 from dotenv import load_dotenv
 from google import genai
-
-from agents.meeting_summarizer import run_meeting_summarizer
-from agents.action_item_agent import run_action_item_agent
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from agents.meeting_summarizer import stream_meeting_summarizer
+from agents.action_item_agent import stream_action_item_agent
 from agents.translator_agent import translate_transcript
-from schema.meeting_schema import MeetingWorkflowResult
 
 
 SAMPLE_TRANSCRIPT = """
@@ -57,123 +47,78 @@ Priya: What's the budget for the design tooling upgrade we discussed last month?
 Sarah: I don't have that info yet — I'll check with finance and get back to everyone.
 """
 
+# ---------------------------------------------------------------------------
+# FastAPI app
+# ---------------------------------------------------------------------------
 
-def print_results(result: MeetingWorkflowResult) -> None:
-    print("\n" + "=" * 60)
-    print("MEETING SUMMARY (Agent 1)")
-    print("=" * 60)
-
-    s = result.summary
-    print("\nConcise Summary:")
-    print(f"  {s.concise_summary}")
-
-    print("\nKey Discussion Points:")
-    for point in s.key_discussion_points:
-        print(f"  • {point}")
-
-    print("\nDecisions Made:")
-    for decision in s.decisions_made:
-        print(f"  ✓ {decision}")
-
-    print("\nOpen Questions:")
-    for q in s.open_questions:
-        print(f"  ? {q}")
-
-    print("\nMissing Information:")
-    for m in s.missing_information:
-        print(f"  ⚠ {m}")
-
-    print("\n" + "=" * 60)
-    print("ACTION ITEMS (Agent 2)")
-    print("=" * 60)
-
-    for i, item in enumerate(result.action_report.action_items, 1):
-        status_icon = "✓" if item.status == "Clear" else "⚠"
-        print(f"\n{i}. [{item.priority}] {item.action}")
-        print(f"   Owner: {item.owner}  |  Due: {item.due_date}  |  {status_icon} {item.status}")
-
-    if result.action_report.flagged_issues:
-        print("\nFlagged Issues:")
-        for issue in result.action_report.flagged_issues:
-            print(f"  ⚑ {issue}")
-
-    print("\n" + "=" * 60)
+load_dotenv()
+app = FastAPI(title="Meeting Workflow API")
 
 
-async def run_workflow(transcript: str, language: str = "English") -> MeetingWorkflowResult:
-    """Translate (if needed) then run both agents in parallel."""
-    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-
-    if language.strip().lower() != "english":
-        print(f"Translating transcript to {language}...")
-        transcript = await translate_transcript(client, transcript, language)
-
-    print("Running Agent 1 (Meeting Summarizer) and Agent 2 (Action Item Agent) in parallel...")
-
-    summary, action_report = await asyncio.gather(
-        run_meeting_summarizer(client, transcript),
-        run_action_item_agent(client, transcript),
-    )
-
-    return MeetingWorkflowResult(summary=summary, action_report=action_report)
+def _make_client() -> genai.Client:
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY is not set")
+    return genai.Client(api_key=api_key)
 
 
-def main() -> None:
-    """CLI Entry Point."""
-    parser = argparse.ArgumentParser(description="Multi-Agent Meeting Assistant CLI")
-    parser.add_argument(
-        "--file", "-f",
-        type=str,
-        help="Path to a text file containing the meeting transcript. If not provided, the default sample transcript is used."
-    )
-    parser.add_argument(
-        "--language", "-l",
-        type=str,
-        default="English",
-        help="Target language for translation (default: English)."
-    )
-    parser.add_argument(
-        "--output", "-o",
-        type=str,
-        default="output.json",
-        help="Path to save the JSON output (default: output.json)."
-    )
-    args = parser.parse_args()
+def _parse_json(raw: str) -> dict:
+    cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    return json.loads(cleaned)
 
-    # Load environment variables from .env file
-    load_dotenv()
 
-    # Ensure GEMINI_API_KEY is present
-    if not os.environ.get("GEMINI_API_KEY"):
-        print("Error: GEMINI_API_KEY environment variable is not set.")
-        print("Please set it in your system environment or in a .env file (see .env.example).")
-        return
+@app.websocket("/ws/summarize")
+async def ws_summarize(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        data = await websocket.receive_json()
+        transcript = data.get("transcript", SAMPLE_TRANSCRIPT)
+        language = data.get("language", "English")
 
-    # Determine the transcript content to use
-    if args.file:
+        client = _make_client()
+
+        if language.strip().lower() != "english":
+            await websocket.send_json({"type": "status", "message": f"Translating to {language}..."})
+            transcript = await translate_transcript(client, transcript, language)
+
+        await websocket.send_json({"type": "status", "message": "Agents started"})
+
+        # Lock prevents concurrent writes to the WebSocket from two tasks
+        send_lock = asyncio.Lock()
+
+        async def send(payload: dict) -> None:
+            async with send_lock:
+                await websocket.send_json(payload)
+
+        async def run_and_stream(stream_fn, agent_type: str) -> None:
+            accumulated = ""
+            async for chunk in stream_fn(client, transcript):
+                accumulated += chunk
+                await send({"type": f"{agent_type}_chunk", "chunk": chunk})
+            result = _parse_json(accumulated)
+            await send({"type": f"{agent_type}_done", "data": result})
+
+        await asyncio.gather(
+            run_and_stream(stream_meeting_summarizer, "summary"),
+            run_and_stream(stream_action_item_agent, "actions"),
+        )
+
+        await websocket.send_json({"type": "complete"})
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
         try:
-            with open(args.file, "r", encoding="utf-8") as f:
-                transcript = f.read()
-            print(f"Loaded transcript from {args.file} ({len(transcript)} chars)")
-        except Exception as e:
-            print(f"Error reading transcript file {args.file}: {e}")
-            return
-    else:
-        print("Using the default sample transcript (Q2 Product Planning)")
-        transcript = SAMPLE_TRANSCRIPT
-
-    async def run() -> None:
-        result = await run_workflow(transcript, language=args.language)
-        print_results(result)
+            await websocket.send_json({"type": "error", "message": str(e)})
+        except Exception:
+            pass
+    finally:
         try:
-            with open(args.output, "w", encoding="utf-8") as f:
-                json.dump(result.model_dump(), f, indent=2)
-            print(f"\nFull output saved to {args.output}")
-        except Exception as e:
-            print(f"Error saving output to {args.output}: {e}")
-
-    asyncio.run(run())
+            await websocket.close()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
-    main()
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
